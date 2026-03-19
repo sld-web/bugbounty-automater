@@ -5,17 +5,20 @@
   "description": "Subdomain enumeration using OWASP Amass",
   "inputs": {
     "target": {
+      "name": "target",
       "type": "string",
       "required": true,
       "description": "Target domain for enumeration"
     },
     "mode": {
+      "name": "mode",
       "type": "string",
       "required": false,
       "default": "passive",
       "description": "amass mode: passive, active, or all"
     },
     "wordlist": {
+      "name": "wordlist",
       "type": "string",
       "required": false,
       "description": "Wordlist for brute forcing"
@@ -23,10 +26,12 @@
   },
   "outputs": {
     "subdomains": {
+      "name": "subdomains",
       "type": "json_file",
       "description": "List of discovered subdomains"
     },
     "scan_log": {
+      "name": "scan_log",
       "type": "text_file",
       "description": "Amass scan log"
     }

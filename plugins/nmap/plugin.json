@@ -5,17 +5,20 @@
   "description": "Port scanning using Nmap",
   "inputs": {
     "target": {
+      "name": "target",
       "type": "string",
       "required": true,
       "description": "Target IP or hostname"
     },
     "ports": {
+      "name": "ports",
       "type": "string",
       "required": false,
       "default": "-T4 -F",
       "description": "Port specification"
     },
     "scripts": {
+      "name": "scripts",
       "type": "array",
       "required": false,
       "description": "NSE scripts to run"
@@ -23,10 +26,12 @@
   },
   "outputs": {
     "ports": {
+      "name": "ports",
       "type": "json_file",
       "description": "List of open ports and services"
     },
     "scan_output": {
+      "name": "scan_output",
       "type": "text_file",
       "description": "Nmap output"
     }

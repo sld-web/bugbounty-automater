@@ -5,22 +5,26 @@
   "description": "Vulnerability scanning using Nuclei",
   "inputs": {
     "target": {
+      "name": "target",
       "type": "string",
       "required": true,
       "description": "Target URL or list file"
     },
     "templates": {
+      "name": "templates",
       "type": "string",
       "required": false,
       "default": "templates",
       "description": "Templates directory or tags"
     },
     "severity": {
+      "name": "severity",
       "type": "array",
       "required": false,
       "description": "Filter by severity"
     },
     "rate_limit": {
+      "name": "rate_limit",
       "type": "integer",
       "default": 150,
       "description": "Requests per second"
@@ -28,10 +32,12 @@
   },
   "outputs": {
     "findings": {
+      "name": "findings",
       "type": "json_file",
       "description": "List of vulnerability findings"
     },
     "scan_output": {
+      "name": "scan_output",
       "type": "text_file",
       "description": "Nuclei scan output"
     }

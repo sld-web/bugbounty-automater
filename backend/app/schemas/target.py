@@ -10,7 +10,7 @@ class TargetCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=500)
     target_type: TargetType = TargetType.DOMAIN
     program_id: str
-    metadata: dict = Field(default_factory=dict)
+    target_metadata: dict = Field(default_factory=dict)
 
 
 class TargetUpdate(BaseModel):
@@ -20,7 +20,7 @@ class TargetUpdate(BaseModel):
     ports: list | None = None
     subdomains: list | None = None
     endpoints: list | None = None
-    metadata: dict | None = None
+    target_metadata: dict | None = None
     surface_coverage: int | None = None
     attack_vector_coverage: int | None = None
     logic_flow_coverage: int | None = None
@@ -36,7 +36,7 @@ class TargetResponse(BaseModel):
     ports: list
     subdomains: list
     endpoints: list
-    target_metadata: dict = Field(alias="metadata")
+    target_metadata: dict
     surface_coverage: int
     attack_vector_coverage: int
     logic_flow_coverage: int
@@ -46,7 +46,7 @@ class TargetResponse(BaseModel):
     updated_at: datetime
     program_name: str | None = None
 
-    model_config = {"from_attributes": True, "populate_by_name": True}
+    model_config = {"from_attributes": True}
 
 
 class TargetStatusResponse(BaseModel):

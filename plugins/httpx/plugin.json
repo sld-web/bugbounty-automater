@@ -5,21 +5,25 @@
   "description": "Fast HTTP probing and screenshot capture",
   "inputs": {
     "target": {
+      "name": "target",
       "type": "string",
       "required": true,
       "description": "Target URLs or host file"
     },
     "screenshots": {
+      "name": "screenshots",
       "type": "boolean",
       "default": false,
       "description": "Take screenshots"
     },
     "technologies": {
+      "name": "technologies",
       "type": "boolean",
       "default": true,
       "description": "Detect technologies"
     },
     "threads": {
+      "name": "threads",
       "type": "integer",
       "default": 50,
       "description": "Number of threads"
@@ -27,10 +31,12 @@
   },
   "outputs": {
     "endpoints": {
+      "name": "endpoints",
       "type": "json_file",
       "description": "List of probed endpoints with info"
     },
     "technologies": {
+      "name": "technologies",
       "type": "json_file",
       "description": "Detected technologies"
     }
