@@ -171,10 +171,14 @@ class Orchestrator:
                     logger.info(f"Target {target.id} cancelled, stopping execution")
                     return
 
+                phase_name_str = phase_name.value if isinstance(phase_name, PhaseType) else phase_name
+                logger.info(f"Starting phase: {phase_name_str} for target {target.id}")
                 await self._execute_phase(target, phase_name, phase_config)
+                logger.info(f"Completed phase: {phase_name_str} for target {target.id}")
 
             target.status = TargetStatus.COMPLETED
             await self.db.commit()
+            logger.info(f"Target {target.id} completed successfully")
 
         except Exception as e:
             logger.exception(f"DAG execution failed for target {target.id}")
@@ -192,57 +196,167 @@ class Orchestrator:
         card_mapping = {}
 
         for i, (phase_name, phase_config) in enumerate(dag.items()):
+            phase_name_str = phase_name.value if isinstance(phase_name, PhaseType) else phase_name
             card = FlowCard(
-                name=phase_name.value if isinstance(phase_name, PhaseType) else phase_name,
+                name=phase_name_str,
                 card_type=CardType.FLOW,
                 target_id=target.id,
                 position_x=position["x"],
                 position_y=position["y"],
-                metadata={"phase_config": phase_config},
+                card_metadata={"phase_config": phase_config, "plugins": phase_config.get("plugins", [])},
             )
             self.db.add(card)
-            card_mapping[phase_name] = card.id
+            await self.db.flush()
+            card_mapping[phase_name_str] = card.id
 
             position["y"] += 150
 
-        await self.db.commit()
-
-        for i, (phase_name, card_id) in enumerate(card_mapping.items()):
+        for i, (phase_name_str, card_id) in enumerate(card_mapping.items()):
             if i > 0:
-                prev_phase = list(card_mapping.keys())[i - 1]
-                prev_card = await self.db.get(FlowCard, card_mapping[prev_phase])
+                prev_phase_name = list(card_mapping.keys())[i - 1]
+                prev_card = await self.db.get(FlowCard, card_mapping[prev_phase_name])
                 card = await self.db.get(FlowCard, card_id)
                 if prev_card and card:
                     card.parent_id = prev_card.id
 
         await self.db.commit()
 
+    async def _get_flow_card(self, target_id: str, phase_name: str) -> FlowCard | None:
+        """Get the flow card for a specific phase."""
+        result = await self.db.execute(
+            select(FlowCard).where(
+                FlowCard.target_id == target_id,
+                FlowCard.name == phase_name
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def _execute_phase(
         self,
         target: Target,
-        phase_name: str,
+        phase_name: str | PhaseType,
         phase_config: dict,
     ) -> None:
         """Execute a single phase of the DAG."""
+        phase_name_str = phase_name.value if isinstance(phase_name, PhaseType) else phase_name
         plugins = phase_config.get("plugins", [])
 
         if not plugins:
             return
 
-        for plugin_name in plugins:
-            plugin_run = await self.plugin_runner.run_plugin(
-                plugin_name=plugin_name,
-                target=target.name,
-                params=phase_config.get("params", {}),
-            )
-
-            plugin_run.target_id = target.id
-            self.db.add(plugin_run)
+        card = await self._get_flow_card(target.id, phase_name_str)
+        if card:
+            card.mark_running()
             await self.db.commit()
-            await self.db.refresh(plugin_run)
 
-            if plugin_run.results:
-                await self._process_plugin_results(target, plugin_name, plugin_run.results)
+        phase_results = {"plugins_run": [], "outputs": {}}
+
+        try:
+            requires_approval = phase_config.get("requires_approval", False)
+            if requires_approval:
+                logger.info(f"Phase {phase_name_str} requires approval, checking risk...")
+                
+                request, auto_approve = await self.approval_manager.assess_and_create(
+                    action_type=phase_name_str,
+                    action_description=f"Execute phase: {phase_name_str}",
+                    target_id=target.id,
+                    target=target.name,
+                    plugin_permission=phase_config.get("permission", "LIMITED"),
+                    scope_info={"domains": target.program.scope_domains if target.program else []},
+                    evidence={"phase_config": phase_config},
+                    context=f"Phase {phase_name_str} on {target.name}",
+                )
+
+                if not auto_approve and request:
+                    logger.info(f"Approval request {request.id} created for phase {phase_name_str}")
+                    if card:
+                        card.status = card.status.REVIEW
+                        card.logs.append(f"Waiting for approval: {request.id}")
+                        await self.db.commit()
+
+                    approved = await self._wait_for_approval(request.id)
+                    if not approved:
+                        logger.info(f"Approval denied/timeout for phase {phase_name_str}, skipping...")
+                        if card:
+                            card.status = card.status.BLOCKED
+                            card.logs.append(f"Phase skipped due to approval denial/timeout")
+                            await self.db.commit()
+                        return
+
+                    logger.info(f"Approval granted for phase {phase_name_str}, continuing...")
+
+            for plugin_name in plugins:
+                plugin_inputs = phase_config.get("inputs", [])
+                plugin_target = target.name
+                
+                if "subdomains" in plugin_inputs and target.subdomains:
+                    plugin_target = target.subdomains[0]
+                elif "endpoints" in plugin_inputs and target.endpoints:
+                    plugin_target = target.endpoints[0].get("url", target.name) if isinstance(target.endpoints[0], dict) else target.endpoints[0]
+                
+                plugin_params = phase_config.get("params", {})
+                if "subdomains" in plugin_inputs:
+                    plugin_params["subdomains"] = target.subdomains
+                if "endpoints" in plugin_inputs:
+                    plugin_params["endpoints"] = target.endpoints
+                
+                plugin_run = await self.plugin_runner.run_plugin(
+                    plugin_name=plugin_name,
+                    target=plugin_target,
+                    params=plugin_params,
+                )
+
+                plugin_run.target_id = target.id
+                self.db.add(plugin_run)
+                await self.db.commit()
+                await self.db.refresh(plugin_run)
+
+                phase_results["plugins_run"].append({
+                    "name": plugin_name,
+                    "status": plugin_run.status.value,
+                    "exit_code": plugin_run.exit_code,
+                })
+
+                if plugin_run.results:
+                    await self._process_plugin_results(target, plugin_name, plugin_run.results)
+                    phase_results["outputs"].update(plugin_run.results)
+
+            if card:
+                card.mark_done(results=phase_results)
+                card.logs.append(f"Phase {phase_name_str} completed at {datetime.utcnow().isoformat()}")
+                await self.db.commit()
+
+        except Exception as e:
+            logger.exception(f"Phase {phase_name_str} failed: {e}")
+            if card:
+                card.mark_failed(str(e))
+                card.logs.append(f"Phase {phase_name_str} failed at {datetime.utcnow().isoformat()}: {str(e)}")
+                await self.db.commit()
+            raise
+
+    async def _wait_for_approval(self, request_id: str, poll_interval: int = 2) -> bool:
+        """Wait for approval request to be resolved.
+        
+        Returns:
+            True if approved, False if denied or timed out.
+        """
+        max_wait = 3600
+        waited = 0
+        
+        while waited < max_wait:
+            await asyncio.sleep(poll_interval)
+            waited += poll_interval
+            
+            request = await self.approval_manager.get_request(request_id)
+            if not request:
+                logger.warning(f"Approval request {request_id} not found")
+                return False
+                
+            if request.status.value in ["APPROVED", "DENIED", "TIMED_OUT", "CANCELLED"]:
+                return request.status.value == "APPROVED"
+        
+        logger.warning(f"Approval request {request_id} timed out after {max_wait}s")
+        return False
 
     async def _process_plugin_results(
         self,

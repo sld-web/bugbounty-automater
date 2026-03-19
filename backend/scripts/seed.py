@@ -5,10 +5,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.database import async_session_maker
+from sqlalchemy import select, func
+
+from app.database import async_session_maker, engine, Base
 from app.models.program import Program
 from app.models.target import Target, TargetStatus, TargetType
 from app.models.finding import Finding, Severity, FindingStatus
+from app.models.flow_card import FlowCard
+from app.models.approval import ApprovalRequest
+from app.models.plugin_run import PluginRun
 
 
 ETERNAL_CONFIG = {
@@ -95,6 +100,7 @@ X_CONFIG = {
         "medium": [2500, 7500],
         "low": [500, 2500],
     },
+    "campaigns": [],
 }
 
 PAYPAL_CONFIG = {
@@ -134,18 +140,27 @@ PAYPAL_CONFIG = {
         "medium": [500, 2500],
         "low": [100, 500],
     },
+    "campaigns": [],
 }
+
+
+async def create_tables():
+    """Create all database tables."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("Created database tables")
 
 
 async def seed_programs():
     """Seed the database with sample programs."""
     async with async_session_maker() as session:
-        existing = await session.execute(
-            "SELECT name FROM programs WHERE name IN (:names)",
-            {"names": ["Eternal (Zomato/Blinkit)", "X (Twitter)", "PayPal"]}
+        result = await session.execute(
+            select(func.count(Program.id))
         )
-        if existing.fetchone():
-            print("Programs already exist, skipping seed.")
+        count = result.scalar()
+        
+        if count and count > 0:
+            print(f"Programs already exist ({count}), skipping seed.")
             return
 
         programs_data = [ETERNAL_CONFIG, X_CONFIG, PAYPAL_CONFIG]
@@ -162,10 +177,9 @@ async def seed_programs():
 async def seed_sample_targets():
     """Seed sample targets for testing."""
     async with async_session_maker() as session:
-        result = await session.execute(
-            "SELECT id, name FROM programs LIMIT 1"
-        )
-        program = result.fetchone()
+        result = await session.execute(select(Program).limit(1))
+        program = result.scalar_one_or_none()
+        
         if not program:
             print("No programs found, skipping targets.")
             return
@@ -175,14 +189,14 @@ async def seed_sample_targets():
                 name="zomato.com",
                 target_type=TargetType.DOMAIN,
                 status=TargetStatus.PENDING,
-                program_id=program[0],
+                program_id=program.id,
                 subdomains=["api.zomato.com", "www.zomato.com"],
             ),
             Target(
                 name="blinkit.com",
                 target_type=TargetType.DOMAIN,
                 status=TargetStatus.PENDING,
-                program_id=program[0],
+                program_id=program.id,
                 subdomains=["api.blinkit.com"],
             ),
         ]
@@ -197,10 +211,9 @@ async def seed_sample_targets():
 async def seed_sample_findings():
     """Seed sample findings for testing."""
     async with async_session_maker() as session:
-        result = await session.execute(
-            "SELECT id FROM targets LIMIT 1"
-        )
-        target = result.fetchone()
+        result = await session.execute(select(Target).limit(1))
+        target = result.scalar_one_or_none()
+        
         if not target:
             print("No targets found, skipping findings.")
             return
@@ -211,7 +224,7 @@ async def seed_sample_findings():
                 description="The login endpoint redirects to arbitrary URLs",
                 severity=Severity.MEDIUM,
                 status=FindingStatus.NEW,
-                target_id=target[0],
+                target_id=target.id,
                 vuln_type="open_redirect",
                 affected_url="https://zomato.com/login",
             ),
@@ -220,7 +233,7 @@ async def seed_sample_findings():
                 description="Content-Security-Policy header is not set",
                 severity=Severity.LOW,
                 status=FindingStatus.NEW,
-                target_id=target[0],
+                target_id=target.id,
                 vuln_type="missing_csp",
                 affected_url="https://www.zomato.com",
             ),
@@ -236,6 +249,7 @@ async def seed_sample_findings():
 async def main():
     """Run all seed operations."""
     print("Seeding database...")
+    await create_tables()
     await seed_programs()
     await seed_sample_targets()
     await seed_sample_findings()

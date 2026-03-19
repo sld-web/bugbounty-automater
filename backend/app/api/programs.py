@@ -3,10 +3,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.program import Program
+from app.models.target import Target
 from app.schemas.program import (
     ProgramCreate,
     ProgramUpdate,
@@ -27,7 +29,7 @@ async def list_programs(
     needs_review: bool | None = None,
 ):
     """List all programs."""
-    query = select(Program)
+    query = select(Program).options(selectinload(Program.targets))
 
     if platform:
         query = query.where(Program.platform == platform)
@@ -41,13 +43,8 @@ async def list_programs(
 
     response = []
     for program in programs:
-        target_count = await db.execute(
-            select(func.count()).select_from(program.targets)
-        )
-        finding_count_result = await db.execute(
-            select(func.count()).select_from(program.targets[0].findings)
-            if program.targets else select(0)
-        )
+        target_count = len(program.targets)
+        finding_count = 0  # Skip for now to avoid lazy loading issues
 
         response.append(
             ProgramResponse(
@@ -73,8 +70,8 @@ async def list_programs(
                 review_notes=program.review_notes,
                 created_at=program.created_at,
                 updated_at=program.updated_at,
-                target_count=target_count.scalar() or 0,
-                finding_count=0,
+                target_count=target_count,
+                finding_count=finding_count,
             )
         )
 

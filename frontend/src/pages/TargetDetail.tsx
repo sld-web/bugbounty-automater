@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   Play,
@@ -8,38 +8,49 @@ import {
   Bug,
   Target,
   AlertTriangle,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react'
 import { api, ENDPOINTS } from '../services/api'
+import { FlowChart, FlowCardData } from '../components/FlowChart'
 
 export default function TargetDetail() {
   const { targetId } = useParams<{ targetId: string }>()
   const [target, setTarget] = useState<any>(null)
+  const [flowCards, setFlowCards] = useState<FlowCardData[]>([])
+  const [selectedCard, setSelectedCard] = useState<FlowCardData | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const fetchData = useCallback(async () => {
+    if (!targetId) return
+
+    try {
+      const [targetRes, flowRes] = await Promise.all([
+        api.get(ENDPOINTS.target(targetId)),
+        api.get(ENDPOINTS.targetFlows(targetId)),
+      ])
+      setTarget(targetRes.data)
+      setFlowCards(flowRes.data)
+    } catch (error) {
+      console.error('Failed to fetch data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [targetId])
 
   useEffect(() => {
     if (!targetId) return
-
-    const fetchTarget = async () => {
-      try {
-        const res = await api.get(ENDPOINTS.target(targetId))
-        setTarget(res.data)
-      } catch (error) {
-        console.error('Failed to fetch target:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTarget()
-    const interval = setInterval(fetchTarget, 5000)
+    fetchData()
+    const interval = setInterval(fetchData, 5000)
     return () => clearInterval(interval)
-  }, [targetId])
+  }, [targetId, fetchData])
 
   const handleStart = async () => {
     if (!targetId) return
     try {
       await api.post(ENDPOINTS.targetStart(targetId))
-      setTarget({ ...target, status: 'RUNNING' })
+      fetchData()
     } catch (error) {
       console.error('Failed to start target:', error)
     }
@@ -49,10 +60,14 @@ export default function TargetDetail() {
     if (!targetId) return
     try {
       await api.post(ENDPOINTS.targetPause(targetId))
-      setTarget({ ...target, status: 'PAUSED' })
+      fetchData()
     } catch (error) {
       console.error('Failed to pause target:', error)
     }
+  }
+
+  const handleCardClick = (card: FlowCardData) => {
+    setSelectedCard(card)
   }
 
   if (loading) {
@@ -80,13 +95,23 @@ export default function TargetDetail() {
     )
   }
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     PENDING: 'bg-slate-500',
     RUNNING: 'bg-green-500',
     PAUSED: 'bg-yellow-500',
     COMPLETED: 'bg-blue-500',
     FAILED: 'bg-red-500',
     CANCELLED: 'bg-slate-600',
+  }
+
+  const cardStatusIcons: Record<string, JSX.Element> = {
+    NOT_STARTED: <Clock className="w-4 h-4 text-gray-400" />,
+    RUNNING: <RotateCcw className="w-4 h-4 text-blue-500 animate-spin" />,
+    REVIEW: <AlertTriangle className="w-4 h-4 text-yellow-500" />,
+    DONE: <CheckCircle className="w-4 h-4 text-green-500" />,
+    FAILED: <XCircle className="w-4 h-4 text-red-500" />,
+    BLOCKED: <XCircle className="w-4 h-4 text-purple-500" />,
+    FLAGGED: <AlertTriangle className="w-4 h-4 text-orange-500" />,
   }
 
   return (
@@ -133,11 +158,22 @@ export default function TargetDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2">
+          <div className="card">
+            <h2 className="text-lg font-semibold text-white mb-4">Testing Workflow</h2>
+            <FlowChart
+              cards={flowCards}
+              selectedCardId={selectedCard?.id}
+              onCardClick={handleCardClick}
+            />
+          </div>
+        </div>
+
+        <div>
           <div className="card">
             <h2 className="text-lg font-semibold text-white mb-4">Coverage</h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-4">
               <div>
                 <p className="text-sm text-slate-400 mb-1">Surface</p>
                 <div className="flex items-center gap-2">
@@ -176,7 +212,67 @@ export default function TargetDetail() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
+      {selectedCard && (
+        <div className="card mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Card Details: {selectedCard.name}</h2>
+            <button
+              onClick={() => setSelectedCard(null)}
+              className="text-slate-400 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-slate-400 mb-1">Status</p>
+              <div className="flex items-center gap-2">
+                {cardStatusIcons[selectedCard.status]}
+                <span className="text-white">{selectedCard.status}</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-slate-400 mb-1">Type</p>
+              <span className="text-white">{selectedCard.card_type}</span>
+            </div>
+            {selectedCard.description && (
+              <div className="col-span-2">
+                <p className="text-sm text-slate-400 mb-1">Description</p>
+                <p className="text-white">{selectedCard.description}</p>
+              </div>
+            )}
+            {selectedCard.duration_seconds && (
+              <div>
+                <p className="text-sm text-slate-400 mb-1">Duration</p>
+                <span className="text-white">{selectedCard.duration_seconds}s</span>
+              </div>
+            )}
+            {selectedCard.error && (
+              <div className="col-span-2">
+                <p className="text-sm text-slate-400 mb-1">Error</p>
+                <p className="text-red-400">{selectedCard.error}</p>
+              </div>
+            )}
+            {selectedCard.logs && selectedCard.logs.length > 0 && (
+              <div className="col-span-2">
+                <p className="text-sm text-slate-400 mb-1">Logs</p>
+                <div className="bg-slate-800 rounded p-2 max-h-32 overflow-auto">
+                  {selectedCard.logs.map((log, i) => (
+                    <p key={i} className="text-xs text-slate-400 font-mono">{log}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
           <div className="card">
             <h2 className="text-lg font-semibold text-white mb-4">Discovered Assets</h2>
             <div className="space-y-4">
@@ -185,14 +281,16 @@ export default function TargetDetail() {
                   Subdomains ({target.subdomains?.length || 0})
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {target.subdomains?.map((sub: string) => (
-                    <span
-                      key={sub}
-                      className="px-2 py-1 bg-slate-700 rounded text-sm text-white"
-                    >
-                      {sub}
-                    </span>
-                  )) || (
+                  {target.subdomains?.length > 0 ? (
+                    target.subdomains.map((sub: string) => (
+                      <span
+                        key={sub}
+                        className="px-2 py-1 bg-slate-700 rounded text-sm text-white"
+                      >
+                        {sub}
+                      </span>
+                    ))
+                  ) : (
                     <span className="text-slate-500">No subdomains discovered</span>
                   )}
                 </div>
@@ -203,14 +301,16 @@ export default function TargetDetail() {
                   Endpoints ({target.endpoints?.length || 0})
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {target.endpoints?.slice(0, 10).map((ep: any) => (
-                    <span
-                      key={ep.url}
-                      className="px-2 py-1 bg-slate-700 rounded text-sm text-white"
-                    >
-                      {ep.url}
-                    </span>
-                  )) || (
+                  {target.endpoints?.length > 0 ? (
+                    target.endpoints.slice(0, 10).map((ep: any) => (
+                      <span
+                        key={ep.url}
+                        className="px-2 py-1 bg-slate-700 rounded text-sm text-white"
+                      >
+                        {ep.url}
+                      </span>
+                    ))
+                  ) : (
                     <span className="text-slate-500">No endpoints discovered</span>
                   )}
                 </div>
@@ -245,7 +345,7 @@ export default function TargetDetail() {
                     key={port.port}
                     className="px-2 py-1 bg-slate-700 rounded text-sm text-white"
                   >
-                    {port.port}/{port.protocol}
+                    {port.port}/{port.service}
                   </span>
                 ))
               ) : (

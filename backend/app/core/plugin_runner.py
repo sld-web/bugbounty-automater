@@ -189,19 +189,85 @@ class PluginRunner:
         """Run in mock mode when Docker is unavailable."""
         await asyncio.sleep(0.5)
 
-        mock_results = {
-            "subdomains": [
-                f"www.{target}",
-                f"api.{target}",
-                f"cdn.{target}",
-            ],
-            "status": "completed",
-        }
+        plugin_name = plugin_run.plugin_name
+        mock_results = self._get_mock_results(plugin_name, target, params)
 
         plugin_run.mark_completed(exit_code=0, results=mock_results)
         plugin_run.stdout = json.dumps(mock_results, indent=2)
 
         return plugin_run
+
+    def _get_mock_results(self, plugin_name: str, target: str, params: dict) -> dict:
+        """Get mock results based on plugin name."""
+        
+        if plugin_name == "subfinder":
+            return {
+                "subdomains": [
+                    f"www.{target}",
+                    f"api.{target}",
+                    f"admin.{target}",
+                    f"cdn.{target}",
+                    f"mail.{target}",
+                ],
+                "status": "completed",
+            }
+        
+        elif plugin_name == "amass":
+            subdomains = params.get("subdomains", [f"www.{target}", f"api.{target}"])
+            return {
+                "subdomains": subdomains + [f"dev.{target}", f"staging.{target}"],
+                "scan_log": f"Amass scan completed for {target}",
+                "status": "completed",
+            }
+        
+        elif plugin_name == "nmap":
+            return {
+                "ports": [
+                    {"port": 80, "service": "http", "state": "open"},
+                    {"port": 443, "service": "https", "state": "open"},
+                    {"port": 22, "service": "ssh", "state": "open"},
+                    {"port": 3306, "service": "mysql", "state": "filtered"},
+                ],
+                "status": "completed",
+            }
+        
+        elif plugin_name == "httpx":
+            subdomains = params.get("subdomains", [target])
+            return {
+                "endpoints": [
+                    {"url": f"https://{subdomains[0]}/", "status": 200, "tech": ["nginx", "PHP"]},
+                    {"url": f"https://api.{target}/api", "status": 200, "tech": ["nginx", "Node.js"]},
+                    {"url": f"https://admin.{target}/login", "status": 200, "tech": ["nginx", "Python"]},
+                ],
+                "technologies": ["nginx", "PHP", "Node.js", "Python", "MySQL"],
+                "status": "completed",
+            }
+        
+        elif plugin_name == "nuclei":
+            endpoints = params.get("endpoints", [{"url": f"https://{target}/"}])
+            return {
+                "findings": [
+                    {
+                        "type": "missing_security_headers",
+                        "severity": "info",
+                        "url": endpoints[0].get("url", target),
+                        "description": "Security headers are missing",
+                    },
+                    {
+                        "type": "open_redirect",
+                        "severity": "medium",
+                        "url": f"https://{target}/redirect?url=http://evil.com",
+                        "description": "Open redirect vulnerability found",
+                    },
+                ],
+                "status": "completed",
+            }
+        
+        else:
+            return {
+                "subdomains": [f"www.{target}", f"api.{target}"],
+                "status": "completed",
+            }
 
     async def cancel_plugin(self, container_id: str) -> bool:
         """Cancel a running plugin by stopping its container."""
