@@ -36,7 +36,7 @@ class TargetResponse(BaseModel):
     ports: list
     subdomains: list
     endpoints: list
-    metadata: dict
+    target_metadata: dict = Field(alias="metadata")
     surface_coverage: int
     attack_vector_coverage: int
     logic_flow_coverage: int
@@ -46,7 +46,7 @@ class TargetResponse(BaseModel):
     updated_at: datetime
     program_name: str | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class TargetStatusResponse(BaseModel):

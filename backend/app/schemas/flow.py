@@ -12,7 +12,7 @@ class FlowCardCreate(BaseModel):
     target_id: str
     parent_id: str | None = None
     description: str | None = None
-    metadata: dict = Field(default_factory=dict)
+    card_metadata: dict = Field(default_factory=dict)
     position_x: int = 0
     position_y: int = 0
 
@@ -21,7 +21,7 @@ class FlowCardUpdate(BaseModel):
     name: str | None = None
     status: CardStatus | None = None
     description: str | None = None
-    metadata: dict | None = None
+    card_metadata: dict | None = None
     position_x: int | None = None
     position_y: int | None = None
     results: dict | None = None
@@ -37,7 +37,7 @@ class FlowCardResponse(BaseModel):
     target_id: str
     parent_id: str | None
     description: str | None
-    metadata: dict
+    card_metadata: dict
     position_x: int
     position_y: int
     results: dict

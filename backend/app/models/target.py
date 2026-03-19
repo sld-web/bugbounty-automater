@@ -56,7 +56,7 @@ class Target(BaseModel):
     ports: Mapped[list] = mapped_column(JSON, default=list)
     subdomains: Mapped[list] = mapped_column(JSON, default=list)
     endpoints: Mapped[list] = mapped_column(JSON, default=list)
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    target_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     
     # Coverage tracking
     surface_coverage: Mapped[int] = mapped_column(Integer, default=0)

@@ -1,5 +1,6 @@
 """Plugin schemas."""
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -10,7 +11,7 @@ class PluginInput(BaseModel):
     name: str
     type: str = Field(..., pattern="^(string|integer|boolean|array|object)$")
     required: bool = False
-    default: any = None
+    default: Any | None = None
     description: str | None = None
 
 

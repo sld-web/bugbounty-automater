@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text, DateTime
 from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -54,7 +54,7 @@ class FlowCard(BaseModel):
     
     # Card-specific data
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    card_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     
     # Position in flowchart
     position_x: Mapped[int] = mapped_column(Integer, default=0)

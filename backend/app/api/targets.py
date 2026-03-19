@@ -66,7 +66,7 @@ async def list_targets(
             ports=t.ports,
             subdomains=t.subdomains,
             endpoints=t.endpoints,
-            metadata=t.metadata,
+            target_metadata=t.target_metadata,
             surface_coverage=t.surface_coverage,
             attack_vector_coverage=t.attack_vector_coverage,
             logic_flow_coverage=t.logic_flow_coverage,
