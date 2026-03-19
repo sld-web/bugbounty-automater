@@ -1,0 +1,41 @@
+{
+  "name": "httpx",
+  "version": "1.0",
+  "permission_level": "LIMITED",
+  "description": "Fast HTTP probing and screenshot capture",
+  "inputs": {
+    "target": {
+      "type": "string",
+      "required": true,
+      "description": "Target URLs or host file"
+    },
+    "screenshots": {
+      "type": "boolean",
+      "default": false,
+      "description": "Take screenshots"
+    },
+    "technologies": {
+      "type": "boolean",
+      "default": true,
+      "description": "Detect technologies"
+    },
+    "threads": {
+      "type": "integer",
+      "default": 50,
+      "description": "Number of threads"
+    }
+  },
+  "outputs": {
+    "endpoints": {
+      "type": "json_file",
+      "description": "List of probed endpoints with info"
+    },
+    "technologies": {
+      "type": "json_file",
+      "description": "Detected technologies"
+    }
+  },
+  "timeout_seconds": 1200,
+  "docker_image": "bugbounty-httpx:latest",
+  "entrypoint": "python /app/run.py"
+}

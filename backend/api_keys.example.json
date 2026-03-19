@@ -1,0 +1,62 @@
+{
+  "_comment": "External API Configuration - DO NOT COMMIT THIS FILE",
+  "_description": "Copy this file to api_keys.json and fill in your API keys. This file is gitignored.",
+
+  "openai": {
+    "api_key": "YOUR_OPENAI_API_KEY"
+  },
+
+  "intelligence": {
+    "shodan": {
+      "api_key": "YOUR_SHODAN_API_KEY"
+    },
+    "censys": {
+      "api_id": "YOUR_CENSYS_API_ID",
+      "api_secret": "YOUR_CENSYS_API_SECRET"
+    },
+    "nvd": {
+      "api_key": "YOUR_NVD_API_KEY"
+    },
+    "github": {
+      "token": "YOUR_GITHUB_TOKEN"
+    },
+    "virustotal": {
+      "api_key": "YOUR_VIRUSTOTAL_API_KEY"
+    },
+    "alienvault": {
+      "api_key": "YOUR_ALIENVAULT_API_KEY"
+    },
+    "securitytrails": {
+      "api_key": "YOUR_SECURITYTRAILS_API_KEY"
+    },
+    "hunterio": {
+      "api_key": "YOUR_HUNTERIO_API_KEY"
+    },
+    "leaklookup": {
+      "api_key": "YOUR_LEAKLOOKUP_API_KEY"
+    }
+  },
+
+  "bug_bounty_platforms": {
+    "hackerone": {
+      "api_token": "YOUR_HACKERONE_API_TOKEN",
+      "api_url": "https://api.hackerone.com/v1",
+      "username": "YOUR_HACKERONE_USERNAME"
+    }
+  },
+
+  "notifications": {
+    "slack": {
+      "bot_token": "YOUR_SLACK_BOT_TOKEN",
+      "channel": "#bugbounty-approvals",
+      "webhook_url": "YOUR_SLACK_WEBHOOK_URL"
+    },
+    "email": {
+      "smtp_host": "smtp.gmail.com",
+      "smtp_port": 587,
+      "smtp_user": "YOUR_EMAIL@gmail.com",
+      "smtp_password": "YOUR_EMAIL_PASSWORD",
+      "from_address": "noreply@bugbounty.local"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "nmap",
+  "version": "1.0",
+  "permission_level": "SAFE",
+  "description": "Port scanning using Nmap",
+  "inputs": {
+    "target": {
+      "type": "string",
+      "required": true,
+      "description": "Target IP or hostname"
+    },
+    "ports": {
+      "type": "string",
+      "required": false,
+      "default": "-T4 -F",
+      "description": "Port specification"
+    },
+    "scripts": {
+      "type": "array",
+      "required": false,
+      "description": "NSE scripts to run"
+    }
+  },
+  "outputs": {
+    "ports": {
+      "type": "json_file",
+      "description": "List of open ports and services"
+    },
+    "scan_output": {
+      "type": "text_file",
+      "description": "Nmap output"
+    }
+  },
+  "timeout_seconds": 600,
+  "docker_image": "bugbounty-nmap:latest",
+  "entrypoint": "python /app/run.py"
+}

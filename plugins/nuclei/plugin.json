@@ -1,0 +1,42 @@
+{
+  "name": "nuclei",
+  "version": "1.0",
+  "permission_level": "LIMITED",
+  "description": "Vulnerability scanning using Nuclei",
+  "inputs": {
+    "target": {
+      "type": "string",
+      "required": true,
+      "description": "Target URL or list file"
+    },
+    "templates": {
+      "type": "string",
+      "required": false,
+      "default": "templates",
+      "description": "Templates directory or tags"
+    },
+    "severity": {
+      "type": "array",
+      "required": false,
+      "description": "Filter by severity"
+    },
+    "rate_limit": {
+      "type": "integer",
+      "default": 150,
+      "description": "Requests per second"
+    }
+  },
+  "outputs": {
+    "findings": {
+      "type": "json_file",
+      "description": "List of vulnerability findings"
+    },
+    "scan_output": {
+      "type": "text_file",
+      "description": "Nuclei scan output"
+    }
+  },
+  "timeout_seconds": 3600,
+  "docker_image": "bugbounty-nuclei:latest",
+  "entrypoint": "python /app/run.py"
+}

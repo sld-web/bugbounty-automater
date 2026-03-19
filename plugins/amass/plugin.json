@@ -1,0 +1,37 @@
+{
+  "name": "amass",
+  "version": "1.0",
+  "permission_level": "SAFE",
+  "description": "Subdomain enumeration using OWASP Amass",
+  "inputs": {
+    "target": {
+      "type": "string",
+      "required": true,
+      "description": "Target domain for enumeration"
+    },
+    "mode": {
+      "type": "string",
+      "required": false,
+      "default": "passive",
+      "description": "amass mode: passive, active, or all"
+    },
+    "wordlist": {
+      "type": "string",
+      "required": false,
+      "description": "Wordlist for brute forcing"
+    }
+  },
+  "outputs": {
+    "subdomains": {
+      "type": "json_file",
+      "description": "List of discovered subdomains"
+    },
+    "scan_log": {
+      "type": "text_file",
+      "description": "Amass scan log"
+    }
+  },
+  "timeout_seconds": 1800,
+  "docker_image": "bugbounty-amass:latest",
+  "entrypoint": "python /app/run.py"
+}

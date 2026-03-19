@@ -1,0 +1,27 @@
+{
+  "name": "template",
+  "version": "1.0",
+  "permission_level": "SAFE",
+  "description": "Plugin template",
+  "inputs": {
+    "target": {
+      "type": "string",
+      "required": true,
+      "description": "Target"
+    },
+    "param1": {
+      "type": "string",
+      "required": false,
+      "description": "Optional parameter"
+    }
+  },
+  "outputs": {
+    "results": {
+      "type": "json_file",
+      "description": "Plugin results"
+    }
+  },
+  "timeout_seconds": 600,
+  "docker_image": "bugbounty-template:latest",
+  "entrypoint": "python /app/run.py"
+}

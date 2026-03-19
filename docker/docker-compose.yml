@@ -1,0 +1,102 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bugbounty-postgres
+    environment:
+      POSTGRES_USER: bugbounty
+      POSTGRES_PASSWORD: bugbounty
+      POSTGRES_DB: bugbounty_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bugbounty"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bugbounty-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: bugbounty-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bugbounty-net
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: bugbounty-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://bugbounty:bugbounty@postgres:5432/bugbounty_db
+      DATABASE_URL_SYNC: postgresql://bugbounty:bugbounty@postgres:5432/bugbounty_db
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - bugbounty-net
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: bugbounty-worker
+    environment:
+      DATABASE_URL: postgresql+asyncpg://bugbounty:bugbounty@postgres:5432/bugbounty_db
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - bugbounty-net
+    command: python -m app.worker
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: bugbounty-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - bugbounty-net
+
+networks:
+  bugbounty-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

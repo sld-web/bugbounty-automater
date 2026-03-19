@@ -1,0 +1,32 @@
+{
+  "name": "subfinder",
+  "version": "1.0",
+  "permission_level": "SAFE",
+  "description": "Passive subdomain discovery using Subfinder",
+  "inputs": {
+    "target": {
+      "type": "string",
+      "required": true,
+      "description": "Target domain"
+    },
+    "sources": {
+      "type": "array",
+      "required": false,
+      "description": "Specific sources to use"
+    },
+    "all": {
+      "type": "boolean",
+      "default": true,
+      "description": "Use all sources"
+    }
+  },
+  "outputs": {
+    "subdomains": {
+      "type": "json_file",
+      "description": "List of discovered subdomains"
+    }
+  },
+  "timeout_seconds": 600,
+  "docker_image": "bugbounty-subfinder:latest",
+  "entrypoint": "python /app/run.py"
+}
