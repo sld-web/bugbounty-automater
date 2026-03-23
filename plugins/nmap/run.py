@@ -2,6 +2,7 @@
 """Nmap plugin entrypoint."""
 import argparse
 import json
+import os
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -14,9 +15,6 @@ def parse_nmap_xml(xml_output: str) -> list[dict]:
     try:
         root = ET.fromstring(xml_output)
         for host in root.findall(".//host"):
-            ip = host.find("address[@addrtype='ipv4']")
-            ip_address = ip.get("addr") if ip is not None else "unknown"
-
             for port in host.findall(".//port"):
                 port_id = port.get("portid")
                 protocol = port.get("protocol")
@@ -37,6 +35,23 @@ def parse_nmap_xml(xml_output: str) -> list[dict]:
     except ET.ParseError as e:
         print(f"Failed to parse XML: {e}", file=sys.stderr)
 
+    return ports
+
+
+def parse_nmap_text(stdout: str) -> list[dict]:
+    """Parse nmap text output as fallback."""
+    ports = []
+    for line in stdout.split("\n"):
+        if "/tcp" in line or "/udp" in line:
+            parts = line.split()
+            if len(parts) >= 3:
+                port_proto = parts[0].split("/")
+                ports.append({
+                    "port": int(port_proto[0]),
+                    "protocol": port_proto[1] if len(port_proto) > 1 else "tcp",
+                    "state": parts[1],
+                    "service": parts[2] if len(parts) > 2 else "unknown",
+                })
     return ports
 
 
@@ -65,8 +80,15 @@ def run_nmap(target: str, ports: str = "-T4 -F") -> dict:
         )
 
         ports_found = []
-        if result.returncode in (0, 1) and "PORT" in result.stdout:
-            ports_found = parse_nmap_xml(result.stdout + "\n" + result.stderr)
+        if result.returncode in (0, 1):
+            if os.path.exists(output_file):
+                try:
+                    with open(output_file) as f:
+                        ports_found = parse_nmap_xml(f.read())
+                except Exception:
+                    pass
+            if not ports_found and "PORT" in result.stdout:
+                ports_found = parse_nmap_text(result.stdout)
 
         return {
             "ports": ports_found,
