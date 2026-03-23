@@ -9,6 +9,7 @@ from app.models.base import BaseModel
 
 if TYPE_CHECKING:
     from app.models.target import Target
+    from app.models.credential import Credential
 
 
 class Program(BaseModel):
@@ -31,6 +32,12 @@ class Program(BaseModel):
     campaigns: Mapped[list] = mapped_column(JSON, default=list)
     special_requirements: Mapped[dict] = mapped_column(JSON, default=dict)
     
+    # Detailed target configurations for workflow generation
+    target_configs: Mapped[list] = mapped_column(JSON, default=list)
+    workflow_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    
+    credential_policy: Mapped[dict] = mapped_column(JSON, default=dict)
+    
     # Ingestion metadata
     raw_policy: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence_score: Mapped[float] = mapped_column(Integer, default=0)
@@ -41,6 +48,11 @@ class Program(BaseModel):
     # Relationships
     targets: Mapped[list["Target"]] = relationship(
         "Target",
+        back_populates="program",
+        cascade="all, delete-orphan"
+    )
+    credentials: Mapped[list["Credential"]] = relationship(
+        "Credential",
         back_populates="program",
         cascade="all, delete-orphan"
     )
@@ -73,3 +85,37 @@ class Program(BaseModel):
                 return True
         
         return False
+
+    def get_auth_level(self) -> str:
+        """Get authentication level requirement from credential policy."""
+        policy = self.credential_policy or {}
+        return policy.get("requirement_level", "optional")
+
+    def get_allowed_email_domains(self) -> list[str]:
+        """Get allowed email domains for credentials."""
+        policy = self.credential_policy or {}
+        return policy.get("allowed_domains", [])
+
+    def get_custom_headers(self) -> dict[str, str]:
+        """Get custom headers to inject with credentials."""
+        policy = self.credential_policy or {}
+        return policy.get("custom_headers", {})
+
+    def requires_auth(self) -> bool:
+        """Check if this program requires authentication."""
+        level = self.get_auth_level()
+        return level in ["required", "program_provided", "domain_validated"]
+
+    def allows_public_testing(self) -> bool:
+        """Check if public (non-authenticated) testing is allowed."""
+        policy = self.credential_policy or {}
+        return policy.get("public_testing_allowed", True)
+
+    def get_provisioning_info(self) -> dict | None:
+        """Get test account provisioning information if available."""
+        policy = self.credential_policy or {}
+        return policy.get("provisioning")
+
+    def requires_program_account(self) -> bool:
+        """Check if program-provided accounts are required."""
+        return self.get_auth_level() == "program_provided"

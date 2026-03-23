@@ -1,0 +1,18 @@
+{
+    "name": "alsco_custom",
+    "version": "1.0.0",
+    "description": "Custom exploitation scripts for ALSCO Bug Bounty - Royal CMS & Secure Gateway testing",
+    "permission_level": "DANGEROUS",
+    "author": "BBAIO",
+    "inputs": {
+        "target": "string",
+        "test_type": "string",
+        "auth_required": "boolean"
+    },
+    "outputs": {
+        "findings": "array",
+        "poc": "object",
+        "screenshots": "array"
+    },
+    "timeout": 300
+}

@@ -1,0 +1,16 @@
+{
+  "name": "amass",
+  "version": "1.0.0",
+  "permission_level": "SAFE",
+  "description": "Subdomain enumeration using OWASP Amass",
+  "inputs": {
+    "target": "string (required)",
+    "mode": "enum [passive, active, intel] (default: passive)"
+  },
+  "outputs": {
+    "subdomains": "array of strings",
+    "domains": "array of strings"
+  },
+  "timeout_seconds": 3600,
+  "entrypoint": "python /app/run.py"
+}

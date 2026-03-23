@@ -1,0 +1,45 @@
+{
+  "name": "burpsuite",
+  "version": "1.0",
+  "permission_level": "LIMITED",
+  "description": "Web vulnerability scanning and proxy interception using BurpSuite",
+  "inputs": {
+    "target": {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target URL to scan"
+    },
+    "scan_type": {
+      "name": "scan_type",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Scan type: light, medium, or deep"
+    },
+    "proxy_port": {
+      "name": "proxy_port",
+      "type": "integer",
+      "required": false,
+      "default": 8080,
+      "description": "Local proxy port"
+    }
+  },
+  "outputs": {
+    "issues": {
+      "name": "issues",
+      "type": "json_file",
+      "description": "List of discovered vulnerabilities"
+    },
+    "report": {
+      "name": "report",
+      "type": "html_file",
+      "description": "HTML scan report"
+    }
+  },
+  "timeout_seconds": 1800,
+  "docker_image": "bugbounty-burpsuite:latest",
+  "entrypoint": "python /app/run.py",
+  "local_only": true,
+  "notes": "BurpSuite is a commercial GUI tool. Configure path in settings."
+}

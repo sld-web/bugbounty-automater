@@ -43,16 +43,14 @@ def parse_nmap_xml(xml_output: str) -> list[dict]:
 def run_nmap(target: str, ports: str = "-T4 -F") -> dict:
     """Run Nmap scan."""
     output_file = "/tmp/nmap_results.xml"
-    cmd = [
-        "nmap",
-        "-oX", output_file,
-        "-p", str(ports) if ports.startswith("-") else ports,
-    ]
+    cmd = ["nmap", "-oX", output_file]
 
-    if isinstance(ports, str) and not ports.startswith("-"):
-        cmd.extend(["-p", ports])
-    elif ports == "-T4 -F":
+    if ports == "-T4 -F":
         cmd.extend(["-T4", "-F"])
+    elif ports.startswith("-"):
+        cmd.extend(ports.split())
+    else:
+        cmd.extend(["-p", ports])
 
     cmd.append(target)
 

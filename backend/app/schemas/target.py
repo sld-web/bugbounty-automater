@@ -1,9 +1,24 @@
 """Target schemas."""
+import html
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.target import TargetStatus, TargetType
+
+
+def sanitize_input(value: str) -> str:
+    """Sanitize input to prevent XSS attacks."""
+    if not value:
+        return value
+    escaped = html.escape(value, quote=True)
+    escaped = escaped.replace('\n', '').replace('\r', '').replace('\t', '')
+    script_pattern = re.compile(r'<script[^>]*>.*?</script>', re.IGNORECASE | re.DOTALL)
+    escaped = script_pattern.sub('', escaped)
+    event_pattern = re.compile(r'\bon\w+\s*=', re.IGNORECASE)
+    escaped = event_pattern.sub('', escaped)
+    return escaped.strip()
 
 
 class TargetCreate(BaseModel):
@@ -11,6 +26,13 @@ class TargetCreate(BaseModel):
     target_type: TargetType = TargetType.DOMAIN
     program_id: str
     target_metadata: dict = Field(default_factory=dict)
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def sanitize_name(cls, v):
+        if isinstance(v, str):
+            return sanitize_input(v)
+        return v
 
 
 class TargetUpdate(BaseModel):
@@ -24,6 +46,13 @@ class TargetUpdate(BaseModel):
     surface_coverage: int | None = None
     attack_vector_coverage: int | None = None
     logic_flow_coverage: int | None = None
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def sanitize_name(cls, v):
+        if isinstance(v, str):
+            return sanitize_input(v)
+        return v
 
 
 class TargetResponse(BaseModel):

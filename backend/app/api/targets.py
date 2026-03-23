@@ -264,7 +264,20 @@ async def start_target(
 ):
     """Start the testing pipeline for a target."""
     orchestrator = Orchestrator(db)
-    target = await orchestrator.start_target(target_id)
+    try:
+        target = await orchestrator.start_target(target_id)
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_msg,
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=error_msg,
+            )
     return TargetResponse(
         id=target.id,
         name=target.name,

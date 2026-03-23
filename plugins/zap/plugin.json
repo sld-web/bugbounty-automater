@@ -1,0 +1,43 @@
+{
+  "name": "zap",
+  "version": "1.0",
+  "permission_level": "LIMITED",
+  "description": "OWASP ZAP - Web application security scanner with proxy capabilities",
+  "inputs": {
+    "target": {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "Target URL to scan"
+    },
+    "scan_mode": {
+      "name": "scan_mode",
+      "type": "string",
+      "required": false,
+      "default": "baseline",
+      "description": "Scan mode: baseline, full, api, spider"
+    },
+    "spider": {
+      "name": "spider",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Run spider first"
+    }
+  },
+  "outputs": {
+    "alerts": {
+      "name": "alerts",
+      "type": "json_file",
+      "description": "List of security alerts"
+    },
+    "report": {
+      "name": "report",
+      "type": "html_file",
+      "description": "HTML scan report"
+    }
+  },
+  "timeout_seconds": 1800,
+  "docker_image": "bugbounty-zap:latest",
+  "entrypoint": "python /app/run.py"
+}

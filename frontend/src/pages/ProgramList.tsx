@@ -1,128 +1,225 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Bug, Plus, ArrowRight, AlertCircle } from 'lucide-react'
-import { api, ENDPOINTS } from '../services/api'
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Bug, Plus, ArrowRight, Trophy, Target, Trash2 } from 'lucide-react';
+import { GlassCard, CyberButton, StatusIndicator } from '@/components/ui';
+import { programsApi } from '@/services/api';
+import toast from 'react-hot-toast';
 
 export default function ProgramList() {
-  const [programs, setPrograms] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchPrograms = async () => {
       try {
-        const res = await api.get(ENDPOINTS.programs)
-        setPrograms(res.data)
+        const res = await programsApi.list();
+        setPrograms(Array.isArray(res.data) ? res.data : res.data?.items || []);
       } catch (error) {
-        console.error('Failed to fetch programs:', error)
+        console.error('Failed to fetch programs:', error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
+    };
+
+    fetchPrograms();
+  }, []);
+
+  const platformColors: Record<string, { bg: string; text: string }> = {
+    hackerone: { bg: 'bg-[#00A718]/20', text: 'text-[#00A718]' },
+    bugcrowd: { bg: 'bg-[#F47321]/20', text: 'text-[#F47321]' },
+    yeswehack: { bg: 'bg-blue-500/20', text: 'text-blue-500' },
+    openbugbounty: { bg: 'bg-yellow-500/20', text: 'text-yellow-500' },
+    manual: { bg: 'bg-white/10', text: 'text-white/60' },
+  };
+
+  const handleProgramClick = (programId: string) => {
+    navigate(`/programs/${programId}`);
+  };
+
+  const handleDeleteProgram = async (e: React.MouseEvent, programId: string, programName: string) => {
+    e.stopPropagation();
+    
+    if (!confirm(`Delete program "${programName}"? This cannot be undone.`)) {
+      return;
     }
-
-    fetchPrograms()
-  }, [])
-
-  const platformColors: Record<string, string> = {
-    hackerone: 'bg-green-600',
-    bugcrowd: 'bg-red-600',
-    yeswehack: 'bg-blue-600',
-    openbugbounty: 'bg-yellow-600',
-    manual: 'bg-slate-600',
-  }
+    
+    try {
+      await programsApi.delete(programId);
+      setPrograms(prev => prev.filter(p => p.id !== programId));
+      toast.success(`Program "${programName}" deleted`);
+    } catch (err) {
+      toast.error('Failed to delete program');
+    }
+  };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Programs</h1>
-          <p className="text-slate-400 mt-1">
-            {programs.length} programs configured
-          </p>
+    <div className="space-y-6">
+      <div className="glass-card p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-headline text-primary tracking-wider">
+              PROGRAMS
+            </h1>
+            <p className="text-xs font-mono text-white/50 mt-1">
+              Bug bounty program management
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link to="/programs/import">
+              <CyberButton variant="secondary">
+                <span className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Import from Policy
+                </span>
+              </CyberButton>
+            </Link>
+            <CyberButton>
+              <span className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add Program
+              </span>
+            </CyberButton>
+          </div>
         </div>
-        <button className="btn btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add Program
-        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <GlassCard className="p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-secondary/10 rounded-lg">
+              <Bug className="w-5 h-5 text-secondary" />
+            </div>
+            <div>
+              <div className="text-2xl font-display font-bold text-white">{programs.length}</div>
+              <div className="text-[10px] font-mono text-white/40 uppercase">Total Programs</div>
+            </div>
+          </div>
+        </GlassCard>
+        <GlassCard className="p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-tertiary/10 rounded-lg">
+              <Target className="w-5 h-5 text-tertiary" />
+            </div>
+            <div>
+              <div className="text-2xl font-display font-bold text-white">
+                {programs.reduce((acc, p) => acc + (p.target_count || 0), 0)}
+              </div>
+              <div className="text-[10px] font-mono text-white/40 uppercase">Active Targets</div>
+            </div>
+          </div>
+        </GlassCard>
+        <GlassCard className="p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Trophy className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <div className="text-2xl font-display font-bold text-white">
+                {programs.reduce((acc, p) => acc + (p.finding_count || 0), 0)}
+              </div>
+              <div className="text-[10px] font-mono text-white/40 uppercase">Total Findings</div>
+            </div>
+          </div>
+        </GlassCard>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="h-6 bg-slate-700 rounded w-2/3 mb-4" />
-              <div className="h-4 bg-slate-700 rounded w-1/2 mb-4" />
-              <div className="h-20 bg-slate-700 rounded" />
+            <div key={i} className="glass-card p-6 animate-pulse">
+              <div className="h-24 bg-surface-50/50 rounded" />
             </div>
           ))}
         </div>
       ) : programs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {programs.map((program) => (
-            <Link
+            <div
               key={program.id}
-              to={`/programs/${program.id}`}
-              className="card hover:border-primary-500 transition-colors"
+              onClick={() => handleProgramClick(program.id)}
+              className="group cursor-pointer"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-slate-700 rounded-lg">
-                    <Bug className="w-5 h-5 text-primary-400" />
+              <GlassCard className="p-0 overflow-hidden h-full hover:bg-surface-100/50 transition-colors">
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-surface-50/50 rounded-lg">
+                        <Bug className="w-5 h-5 text-secondary" />
+                      </div>
+                      <div>
+                        <h3 className="font-display text-white group-hover:text-primary transition-colors">
+                          {program.name}
+                        </h3>
+                        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                          platformColors[program.platform]
+                            ? `${platformColors[program.platform].bg} ${platformColors[program.platform].text}`
+                            : 'bg-white/10 text-white/60'
+                        }`}>
+                          {program.platform}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => handleDeleteProgram(e, program.id, program.name)}
+                        className="p-1.5 hover:bg-error/20 rounded text-white/40 hover:text-error transition-colors"
+                        title="Delete program"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <StatusIndicator status="running" size="sm" />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white">{program.name}</h3>
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium text-white ${platformColors[program.platform] || 'bg-slate-600'}`}
-                    >
-                      {program.platform}
-                    </span>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-white/40">Domains</span>
+                      <span className="text-white">{program.scope?.domains?.length || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-white/40">Targets</span>
+                      <span className="text-secondary">{program.target_count || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-white/40">Findings</span>
+                      <span className="text-tertiary">{program.finding_count || 0}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-mono text-white/40 uppercase">Confidence</div>
+                        <div className="font-display text-lg text-primary">
+                          {Math.round((program.confidence_score || 0.8) * 100)}%
+                        </div>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-white/30 group-hover:text-secondary group-hover:translate-x-1 transition-all" />
+                    </div>
                   </div>
                 </div>
-                {program.needs_review && (
-                  <div className="flex items-center gap-1 text-yellow-500">
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="text-xs">Review needed</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2 text-sm text-slate-400 mb-4">
-                <p>
-                  <span className="text-slate-500">Domains:</span>{' '}
-                  {program.scope?.domains?.length || 0}
-                </p>
-                <p>
-                  <span className="text-slate-500">Targets:</span> {program.target_count || 0}
-                </p>
-                <p>
-                  <span className="text-slate-500">Findings:</span> {program.finding_count || 0}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-slate-700">
-                <div className="text-sm">
-                  <span className="text-slate-500">Confidence:</span>{' '}
-                  <span className="text-white">
-                    {Math.round((program.confidence_score || 0) * 100)}%
-                  </span>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-500" />
-              </div>
-            </Link>
+              </GlassCard>
+            </div>
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <Bug className="w-16 h-16 mx-auto text-slate-600 mb-4" />
-          <h2 className="text-xl font-semibold text-white mb-2">No programs yet</h2>
-          <p className="text-slate-400 mb-4">
+        <GlassCard className="p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary/10 flex items-center justify-center">
+            <Bug className="w-8 h-8 text-secondary" />
+          </div>
+          <h2 className="font-display text-xl text-white mb-2">No Programs Yet</h2>
+          <p className="text-sm font-mono text-white/40 mb-6">
             Add a bug bounty program to start hunting
           </p>
-          <button className="btn btn-primary flex items-center gap-2 mx-auto">
-            <Plus className="w-4 h-4" />
-            Add Program
-          </button>
-        </div>
+          <CyberButton>
+            <span className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Add Program
+            </span>
+          </CyberButton>
+        </GlassCard>
       )}
     </div>
-  )
+  );
 }

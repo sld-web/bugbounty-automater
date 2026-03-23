@@ -33,12 +33,15 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # Docker
-    docker_socket: str = "/var/run/docker.sock"
+    docker_socket: str = "unix:///var/run/docker.sock"
     plugin_network: str = "bugbounty_plugins"
 
     # Worker
     worker_concurrency: int = 5
     worker_timeout: int = 3600
+
+    # Encryption
+    encryption_key: str = ""
 
     @property
     def project_root(self) -> Path:

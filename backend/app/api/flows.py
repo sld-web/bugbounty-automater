@@ -1,5 +1,6 @@
 """Flow card API endpoints."""
 from typing import Annotated
+from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.flow_card import FlowCard, CardStatus, CardType
+from app.models.program import Program
 from app.schemas.flow import (
     FlowCardCreate,
     FlowCardUpdate,
@@ -15,8 +17,260 @@ from app.schemas.flow import (
     CoverageResponse,
 )
 from app.core.coverage_tracker import CoverageTracker
+from app.core.plugin_runner import PluginRunner
+from app.services.intel.ai_workflow_generator import workflow_generator
 
 router = APIRouter(prefix="/flows", tags=["flows"])
+
+
+class WorkflowGenerateRequest(BaseModel):
+    program_analysis: dict
+    target_id: str | None = None
+    program_id: str | None = None
+
+
+class WorkflowStepExecuteRequest(BaseModel):
+    step_id: str
+    workflow_data: dict
+    target: str
+    params: dict | None = None
+
+
+@router.post("/generate")
+async def generate_workflow(request: WorkflowGenerateRequest):
+    """Generate a detailed workflow for a program based on AI analysis."""
+    runner = PluginRunner()
+    available_plugins = runner.list_available_plugins()
+    available_tool_names = [p.get('name', '').lower() for p in available_plugins]
+    
+    workflow = workflow_generator.generate_workflow(
+        program_analysis=request.program_analysis,
+        available_tools=available_tool_names,
+    )
+    
+    if request.program_id and db:
+        result = await db.execute(select(Program).where(Program.id == request.program_id))
+        program = result.scalar_one_or_none()
+        if program:
+            program.workflow_data = workflow
+            await db.commit()
+    
+    return {
+        "workflow": workflow,
+        "available_tools": available_tool_names,
+        "summary": {
+            "total_targets": len(workflow.get("phases", [])),
+            "total_steps": workflow.get("total_steps", 0),
+            "auto_steps": workflow.get("auto_steps", 0),
+            "manual_steps": workflow.get("manual_steps", 0),
+            "approval_points": len(workflow.get("approval_points", [])),
+        }
+    }
+
+
+@router.post("/program/{program_id}/generate")
+async def generate_workflow_for_program(
+    program_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Generate workflow for a program using its existing configuration."""
+    from app.models.target import Target
+    
+    result = await db.execute(select(Program).where(Program.id == program_id))
+    program = result.scalar_one_or_none()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Program not found")
+    
+    targets_result = await db.execute(select(Target).where(Target.program_id == program_id))
+    targets = targets_result.scalars().all()
+    
+    runner = PluginRunner()
+    available_plugins = runner.list_available_plugins()
+    available_tool_names = [p.get('name', '').lower() for p in available_plugins]
+    
+    target_configs = []
+    for target in targets:
+        target_configs.append({
+            "name": target.name,
+            "type": target.target_type.value.lower() if target.target_type else "webapp",
+            "scope_domains": [target.name],
+            "scope_ips": target.subdomains or [],
+        })
+    
+    if not target_configs and program.target_configs:
+        target_configs = program.target_configs
+    
+    program_analysis = {
+        "targets": target_configs,
+        "rules": program.special_requirements.get("rules", []) if program.special_requirements else [],
+        "out_of_scope": program.out_of_scope or [],
+        "testing_notes": program.special_requirements.get("testing_notes", "") if program.special_requirements else "",
+        "priority_areas": program.priority_areas or [],
+    }
+    
+    workflow = workflow_generator.generate_workflow(
+        program_analysis=program_analysis,
+        available_tools=available_tool_names,
+    )
+    
+    program.workflow_data = workflow
+    await db.commit()
+    
+    return {
+        "workflow": workflow,
+        "program_id": program_id,
+        "summary": {
+            "total_targets": len(workflow.get("phases", [])),
+            "total_steps": workflow.get("total_steps", 0),
+            "auto_steps": workflow.get("auto_steps", 0),
+            "manual_steps": workflow.get("manual_steps", 0),
+            "approval_points": len(workflow.get("approval_points", [])),
+        }
+    }
+
+
+@router.get("/program/{program_id}/workflow")
+async def get_program_workflow(
+    program_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get saved workflow for a program."""
+    result = await db.execute(select(Program).where(Program.id == program_id))
+    program = result.scalar_one_or_none()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Program not found")
+    
+    return {
+        "workflow": program.workflow_data,
+        "program_id": program_id,
+    }
+
+
+@router.post("/execute-step")
+async def execute_workflow_step(
+    request: WorkflowStepExecuteRequest,
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Execute a single workflow step with result persistence."""
+    runner = PluginRunner()
+    
+    step_data = None
+    for target in request.workflow_data.get("phases", []):
+        for phase in target.get("phases", []):
+            for step in phase.get("steps", []):
+                if step.get("id") == request.step_id:
+                    step_data = step
+                    break
+            if step_data:
+                break
+        if step_data:
+            break
+    
+    if not step_data:
+        raise HTTPException(status_code=404, detail="Step not found")
+    
+    tool_name = step_data.get("tool")
+    
+    if not tool_name:
+        return {
+            "status": "manual_required",
+            "step_id": request.step_id,
+            "message": "This step requires manual execution",
+            "instructions": step_data.get("name"),
+        }
+    
+    if not step_data.get("tool_available"):
+        return {
+            "status": "tool_not_available",
+            "step_id": request.step_id,
+            "tool": tool_name,
+            "message": f"Tool '{tool_name}' is not installed",
+        }
+    
+    try:
+        result = await runner.run_plugin(
+            plugin_name=tool_name,
+            target=request.target,
+            params=request.params or {},
+        )
+        
+        stdout = result.stdout if hasattr(result, 'stdout') else ""
+        results = result.results if hasattr(result, 'results') else {}
+        status = result.status.value if hasattr(result, 'status') else "unknown"
+        exit_code = getattr(result, 'exit_code', 0)
+        
+        if db:
+            from app.models.plugin_run import PluginRun, PluginStatus, PermissionLevel
+            plugin_run = PluginRun(
+                plugin_name=tool_name,
+                target_id=request.target,
+                permission_level=PermissionLevel.LIMITED,
+                params=request.params or {},
+                container_image=f"bugbounty-{tool_name}:latest",
+                status=PluginStatus(status),
+                stdout=stdout,
+                stderr=result.stderr if hasattr(result, 'stderr') else "",
+                exit_code=exit_code,
+                results=results,
+            )
+            plugin_run.mark_completed(exit_code=exit_code, results=results)
+            db.add(plugin_run)
+            await db.commit()
+            await db.refresh(plugin_run)
+            run_id = plugin_run.id
+        else:
+            run_id = None
+        
+        combined_output = {
+            "plugin": tool_name,
+            "target": request.target,
+            "status": status,
+            "exit_code": exit_code,
+            "stdout": stdout,
+            "stderr": result.stderr if hasattr(result, 'stderr') else "",
+            "results": results,
+        }
+        
+        return {
+            "status": "completed",
+            "step_id": request.step_id,
+            "tool": tool_name,
+            "run_id": run_id,
+            "result": {
+                "id": run_id,
+                "status": status,
+                "output": combined_output,
+                "stdout": stdout,
+                "stderr": result.stderr if hasattr(result, 'stderr') else "",
+            },
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "step_id": request.step_id,
+            "tool": tool_name,
+            "error": str(e),
+        }
+
+
+@router.post("/approval-request")
+async def request_approval(
+    step_id: str,
+    workflow_data: dict,
+    target: str,
+    reason: str | None = None,
+):
+    """Request human approval for a step."""
+    return {
+        "request_id": f"approval_{step_id}_{target}",
+        "step_id": step_id,
+        "target": target,
+        "reason": reason or "Human approval required for this step",
+        "status": "pending",
+        "message": "Approval request submitted. Awaiting human review.",
+    }
 
 
 @router.get("/target/{target_id}", response_model=list[FlowCardResponse])

@@ -44,23 +44,23 @@ class PluginRunRequest(BaseModel):
 
 
 class PluginRunResponse(BaseModel):
-    id: str
+    id: str | None = None
     plugin_name: str
-    plugin_version: str | None
+    plugin_version: str | None = None
     status: PluginStatus
-    target_id: str
+    target_id: str | None = None
     permission_level: PermissionLevel
-    params: dict
-    container_id: str | None
-    container_image: str | None
-    queued_at: datetime
-    started_at: datetime | None
-    completed_at: datetime | None
-    duration_seconds: int | None
-    exit_code: int | None
-    error_message: str | None
-    results: dict
-    created_at: datetime
+    params: dict = Field(default_factory=dict)
+    container_id: str | None = None
+    container_image: str | None = None
+    queued_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    duration_seconds: int | None = None
+    exit_code: int | None = None
+    error_message: str | None = None
+    results: dict = Field(default_factory=dict)
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

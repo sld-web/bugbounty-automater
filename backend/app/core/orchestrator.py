@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.database import async_session_maker
 from app.core.approval_manager import ApprovalManager
 from app.core.plugin_runner import PluginRunner
 from app.core.scope_guard import ScopeGuard
@@ -98,7 +99,7 @@ class Orchestrator:
         await self.db.commit()
         await self.db.refresh(target)
 
-        asyncio.create_task(self._execute_dag(target, dag or DEFAULT_DAG))
+        asyncio.create_task(self._execute_dag(target_id, dag or DEFAULT_DAG))
 
         return target
 
@@ -155,39 +156,63 @@ class Orchestrator:
 
     async def _execute_dag(
         self,
-        target: Target,
+        target_id: str,
         dag: dict,
     ) -> None:
         """Execute the testing DAG for a target."""
-        try:
-            await self._create_flow_cards(target, dag)
-
-            for phase_name, phase_config in dag.items():
-                if target.status == TargetStatus.PAUSED:
-                    logger.info(f"Target {target.id} paused, stopping execution")
+        async with async_session_maker() as session:
+            try:
+                result = await session.execute(
+                    select(Target).where(Target.id == target_id)
+                )
+                target = result.scalar_one_or_none()
+                
+                if not target:
+                    logger.error(f"Target {target_id} not found in _execute_dag")
                     return
 
-                if target.status == TargetStatus.CANCELLED:
-                    logger.info(f"Target {target.id} cancelled, stopping execution")
-                    return
+                await self._create_flow_cards(session, target, dag)
 
-                phase_name_str = phase_name.value if isinstance(phase_name, PhaseType) else phase_name
-                logger.info(f"Starting phase: {phase_name_str} for target {target.id}")
-                await self._execute_phase(target, phase_name, phase_config)
-                logger.info(f"Completed phase: {phase_name_str} for target {target.id}")
+                for phase_name, phase_config in dag.items():
+                    result = await session.execute(
+                        select(Target).where(Target.id == target_id)
+                    )
+                    target = result.scalar_one()
 
-            target.status = TargetStatus.COMPLETED
-            await self.db.commit()
-            logger.info(f"Target {target.id} completed successfully")
+                    if target.status == TargetStatus.PAUSED:
+                        logger.info(f"Target {target_id} paused, stopping execution")
+                        return
 
-        except Exception as e:
-            logger.exception(f"DAG execution failed for target {target.id}")
-            target.status = TargetStatus.FAILED
-            target.error_message = str(e)
-            await self.db.commit()
+                    if target.status == TargetStatus.CANCELLED:
+                        logger.info(f"Target {target_id} cancelled, stopping execution")
+                        return
+
+                    phase_name_str = phase_name.value if isinstance(phase_name, PhaseType) else phase_name
+                    logger.info(f"Starting phase: {phase_name_str} for target {target_id}")
+                    await self._execute_phase(session, target, phase_name, phase_config)
+                    logger.info(f"Completed phase: {phase_name_str} for target {target_id}")
+
+                target.status = TargetStatus.COMPLETED
+                await session.commit()
+                logger.info(f"Target {target_id} completed successfully")
+
+            except Exception as e:
+                logger.exception(f"DAG execution failed for target {target_id}")
+                try:
+                    result = await session.execute(
+                        select(Target).where(Target.id == target_id)
+                    )
+                    target = result.scalar_one_or_none()
+                    if target:
+                        target.status = TargetStatus.FAILED
+                        target.error_message = str(e)
+                        await session.commit()
+                except Exception:
+                    pass
 
     async def _create_flow_cards(
         self,
+        session: AsyncSession,
         target: Target,
         dag: dict,
     ) -> None:
@@ -205,8 +230,8 @@ class Orchestrator:
                 position_y=position["y"],
                 card_metadata={"phase_config": phase_config, "plugins": phase_config.get("plugins", [])},
             )
-            self.db.add(card)
-            await self.db.flush()
+            session.add(card)
+            await session.flush()
             card_mapping[phase_name_str] = card.id
 
             position["y"] += 150
@@ -214,16 +239,16 @@ class Orchestrator:
         for i, (phase_name_str, card_id) in enumerate(card_mapping.items()):
             if i > 0:
                 prev_phase_name = list(card_mapping.keys())[i - 1]
-                prev_card = await self.db.get(FlowCard, card_mapping[prev_phase_name])
-                card = await self.db.get(FlowCard, card_id)
+                prev_card = await session.get(FlowCard, card_mapping[prev_phase_name])
+                card = await session.get(FlowCard, card_id)
                 if prev_card and card:
                     card.parent_id = prev_card.id
 
-        await self.db.commit()
+        await session.commit()
 
-    async def _get_flow_card(self, target_id: str, phase_name: str) -> FlowCard | None:
+    async def _get_flow_card(self, session: AsyncSession, target_id: str, phase_name: str) -> FlowCard | None:
         """Get the flow card for a specific phase."""
-        result = await self.db.execute(
+        result = await session.execute(
             select(FlowCard).where(
                 FlowCard.target_id == target_id,
                 FlowCard.name == phase_name
@@ -233,6 +258,7 @@ class Orchestrator:
 
     async def _execute_phase(
         self,
+        session: AsyncSession,
         target: Target,
         phase_name: str | PhaseType,
         phase_config: dict,
@@ -244,10 +270,10 @@ class Orchestrator:
         if not plugins:
             return
 
-        card = await self._get_flow_card(target.id, phase_name_str)
+        card = await self._get_flow_card(session, target.id, phase_name_str)
         if card:
             card.mark_running()
-            await self.db.commit()
+            await session.commit()
 
         phase_results = {"plugins_run": [], "outputs": {}}
 
@@ -272,7 +298,7 @@ class Orchestrator:
                     if card:
                         card.status = card.status.REVIEW
                         card.logs.append(f"Waiting for approval: {request.id}")
-                        await self.db.commit()
+                        await session.commit()
 
                     approved = await self._wait_for_approval(request.id)
                     if not approved:
@@ -280,7 +306,7 @@ class Orchestrator:
                         if card:
                             card.status = card.status.BLOCKED
                             card.logs.append(f"Phase skipped due to approval denial/timeout")
-                            await self.db.commit()
+                            await session.commit()
                         return
 
                     logger.info(f"Approval granted for phase {phase_name_str}, continuing...")
@@ -307,9 +333,9 @@ class Orchestrator:
                 )
 
                 plugin_run.target_id = target.id
-                self.db.add(plugin_run)
-                await self.db.commit()
-                await self.db.refresh(plugin_run)
+                session.add(plugin_run)
+                await session.commit()
+                await session.refresh(plugin_run)
 
                 phase_results["plugins_run"].append({
                     "name": plugin_name,
@@ -318,20 +344,20 @@ class Orchestrator:
                 })
 
                 if plugin_run.results:
-                    await self._process_plugin_results(target, plugin_name, plugin_run.results)
+                    await self._process_plugin_results(session, target, plugin_name, plugin_run.results)
                     phase_results["outputs"].update(plugin_run.results)
 
             if card:
                 card.mark_done(results=phase_results)
                 card.logs.append(f"Phase {phase_name_str} completed at {datetime.utcnow().isoformat()}")
-                await self.db.commit()
+                await session.commit()
 
         except Exception as e:
             logger.exception(f"Phase {phase_name_str} failed: {e}")
             if card:
                 card.mark_failed(str(e))
                 card.logs.append(f"Phase {phase_name_str} failed at {datetime.utcnow().isoformat()}: {str(e)}")
-                await self.db.commit()
+                await session.commit()
             raise
 
     async def _wait_for_approval(self, request_id: str, poll_interval: int = 2) -> bool:
@@ -360,33 +386,34 @@ class Orchestrator:
 
     async def _process_plugin_results(
         self,
+        session: AsyncSession,
         target: Target,
         plugin_name: str,
         results: dict,
     ) -> None:
         """Process results from plugin execution."""
         if "subdomains" in results:
-            existing = set(target.subdomains)
+            existing = set(target.subdomains or [])
             new = [s for s in results["subdomains"] if s not in existing]
             target.subdomains = list(existing) + new
 
         if "endpoints" in results:
-            existing = {e.get("url") for e in target.endpoints}
-            new = [e for e in results["endpoints"] if e.get("url") not in existing]
-            target.endpoints = target.endpoints + new
+            existing_urls = {e.get("url") for e in (target.endpoints or []) if isinstance(e, dict)}
+            new = [e for e in results["endpoints"] if isinstance(e, dict) and e.get("url") not in existing_urls]
+            target.endpoints = (target.endpoints or []) + new
 
         if "technologies" in results:
-            existing = set(target.technologies)
+            existing = set(target.technologies or [])
             new = [t for t in results["technologies"] if t not in existing]
             target.technologies = list(existing) + new
 
         if "ports" in results:
-            existing = set(target.ports)
-            new = [p for p in results["ports"] if p not in existing]
-            target.ports = list(existing) + new
+            existing_ports = {p.get("port") for p in (target.ports or []) if isinstance(p, dict)}
+            new = [p for p in results["ports"] if isinstance(p, dict) and p.get("port") not in existing_ports]
+            target.ports = (target.ports or []) + new
 
         target.update_coverage()
-        await self.db.commit()
+        await session.commit()
 
     def get_available_plugins(self) -> list[str]:
         """Get list of available plugins."""

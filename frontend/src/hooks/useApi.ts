@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, ENDPOINTS } from '../services/api'
+import { api } from '../services/api'
 
 export function useApi<T>(endpoint: string, params?: Record<string, any>) {
   const [data, setData] = useState<T | null>(null)

@@ -39,9 +39,9 @@ class PluginRun(BaseModel):
         default=PluginStatus.QUEUED
     )
     
-    target_id: Mapped[str] = mapped_column(
+    target_id: Mapped[str | None] = mapped_column(
         ForeignKey("targets.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=True
     )
     
     # Execution details
@@ -56,9 +56,9 @@ class PluginRun(BaseModel):
     container_image: Mapped[str | None] = mapped_column(String(500), nullable=True)
     
     # Timing
-    queued_at: Mapped[datetime] = mapped_column(
+    queued_at: Mapped[datetime | None] = mapped_column(
         default=datetime.utcnow,
-        nullable=False
+        nullable=True
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -89,7 +89,7 @@ class PluginRun(BaseModel):
         self.status = PluginStatus.COMPLETED
         self.completed_at = datetime.utcnow()
         self.exit_code = exit_code
-        if self.started_at:
+        if self.started_at and self.completed_at:
             self.duration_seconds = int(
                 (self.completed_at - self.started_at).total_seconds()
             )
@@ -101,7 +101,7 @@ class PluginRun(BaseModel):
         self.completed_at = datetime.utcnow()
         self.error_message = error_message
         self.exit_code = exit_code
-        if self.started_at:
+        if self.started_at and self.completed_at:
             self.duration_seconds = int(
                 (self.completed_at - self.started_at).total_seconds()
             )

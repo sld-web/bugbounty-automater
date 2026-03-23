@@ -1,7 +1,12 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain } from 'electron'
-import { autoUpdater } from 'electron-updater'
+import pkg from 'electron-updater'
+const { autoUpdater } = pkg
 import log from 'electron-log'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 log.initialize()
 autoUpdater.logger = log
@@ -17,6 +22,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 768,
+    backgroundColor: '#0c0e14',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -32,7 +38,9 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
-    mainWindow.webContents.openDevTools()
+    if (process.env.OPEN_DEVTOOLS === 'true') {
+      mainWindow.webContents.openDevTools()
+    }
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
@@ -148,45 +156,55 @@ function createTray() {
     ? path.join(__dirname, '../public/icon.png')
     : path.join(process.resourcesPath, 'public/icon.png')
 
-  tray = new Tray(nativeImage.createFromPath(iconPath))
+  try {
+    const icon = nativeImage.createFromPath(iconPath)
+    if (icon.isEmpty()) {
+      console.log('Tray icon empty, skipping tray creation')
+      return
+    }
+    
+    tray = new Tray(icon)
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Show Window',
-      click: () => {
-        mainWindow?.show()
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show Window',
+        click: () => {
+          mainWindow?.show()
+        },
       },
-    },
-    {
-      label: 'New Target',
-      click: () => {
-        mainWindow?.show()
-        mainWindow?.webContents.send('menu:new-target')
+      {
+        label: 'New Target',
+        click: () => {
+          mainWindow?.show()
+          mainWindow?.webContents.send('menu:new-target')
+        },
       },
-    },
-    { type: 'separator' },
-    {
-      label: 'Pending Approvals',
-      click: () => {
-        mainWindow?.show()
-        mainWindow?.webContents.send('menu:approvals')
+      { type: 'separator' },
+      {
+        label: 'Pending Approvals',
+        click: () => {
+          mainWindow?.show()
+          mainWindow?.webContents.send('menu:approvals')
+        },
       },
-    },
-    { type: 'separator' },
-    {
-      label: 'Quit',
-      click: () => {
-        app.quit()
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          app.quit()
+        },
       },
-    },
-  ])
+    ])
 
-  tray.setToolTip('BugBounty Automator')
-  tray.setContextMenu(contextMenu)
+    tray.setToolTip('BugBounty Automator')
+    tray.setContextMenu(contextMenu)
 
-  tray.on('double-click', () => {
-    mainWindow?.show()
-  })
+    tray.on('double-click', () => {
+      mainWindow?.show()
+    })
+  } catch (err) {
+    console.log('Tray creation skipped:', err)
+  }
 }
 
 autoUpdater.on('update-available', () => {

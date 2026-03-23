@@ -1,0 +1,14 @@
+{
+  "name": "subfinder",
+  "version": "1.0.0",
+  "permission_level": "SAFE",
+  "description": "Passive subdomain discovery using Subfinder",
+  "inputs": {
+    "target": "string (required)"
+  },
+  "outputs": {
+    "subdomains": "array of strings"
+  },
+  "timeout_seconds": 1800,
+  "entrypoint": "python /app/run.py"
+}

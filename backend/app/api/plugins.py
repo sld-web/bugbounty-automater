@@ -31,13 +31,18 @@ class PluginInfo(BaseModel):
 async def list_plugins():
     """List all available plugins."""
     runner = PluginRunner()
-    plugin_names = runner.list_available_plugins()
+    plugin_list = runner.list_available_plugins()
 
     plugins = []
-    for name in plugin_names:
-        manifest = runner._get_plugin_manifest(name)
-        if manifest:
-            plugins.append(PluginManifest(**manifest))
+    for plugin_info in plugin_list:
+        plugins.append(PluginManifest(
+            name=plugin_info.get("name"),
+            version=plugin_info.get("version"),
+            permission_level=plugin_info.get("permission_level"),
+            description=plugin_info.get("description", ""),
+            inputs=plugin_info.get("inputs", {}),
+            outputs=plugin_info.get("outputs", {}),
+        ))
 
     return PluginListResponse(
         plugins=plugins,
@@ -100,7 +105,8 @@ async def run_plugin(
     runner = PluginRunner()
 
     available = runner.list_available_plugins()
-    if plugin_name not in available:
+    available_names = [p["name"] for p in available]
+    if plugin_name not in available_names:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Plugin {plugin_name} not found",

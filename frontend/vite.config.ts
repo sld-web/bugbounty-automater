@@ -10,32 +10,48 @@ export default defineConfig({
     electron([
       {
         entry: 'electron/main.ts',
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: ['electron', 'electron-updater', 'electron-log']
+            }
+          }
+        }
       },
       {
         entry: 'electron/preload.ts',
         onstart(options) {
           options.startup()
         },
-      },
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: ['electron']
+            }
+          }
+        }
+      }
     ]),
-    renderer(),
+    renderer()
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+      '@': path.resolve(__dirname, './src')
+    }
   },
   server: {
     port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-    },
+        changeOrigin: true
+      }
+    }
   },
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
-  },
+    emptyOutDir: true
+  }
 })

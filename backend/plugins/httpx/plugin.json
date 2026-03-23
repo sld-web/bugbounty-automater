@@ -1,0 +1,14 @@
+{
+  "name": "httpx",
+  "version": "1.0.0",
+  "permission_level": "LIMITED",
+  "description": "Fast HTTP probing and screenshot capture",
+  "inputs": {
+    "targets": "array of strings (required)"
+  },
+  "outputs": {
+    "live_hosts": "array of objects with url, status_code, title"
+  },
+  "timeout_seconds": 3600,
+  "entrypoint": "python /app/run.py"
+}

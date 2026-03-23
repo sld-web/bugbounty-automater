@@ -16,6 +16,11 @@ class SlackService:
         self.token = external_apis.slack_bot_token
         self.channel = external_apis.slack_channel
         self.webhook_url = external_apis.slack_webhook_url
+    
+    @property
+    def is_configured(self) -> bool:
+        """Check if Slack is properly configured."""
+        return bool(self.token) or bool(self.webhook_url)
 
     async def send_approval_request(
         self,

@@ -1,0 +1,15 @@
+{
+  "name": "nmap",
+  "version": "1.0.0",
+  "permission_level": "SAFE",
+  "description": "Port scanning using Nmap",
+  "inputs": {
+    "target": "string (required)",
+    "ports": "string (optional, e.g., '22,80,443,8080')"
+  },
+  "outputs": {
+    "open_ports": "array of objects with port, protocol, service"
+  },
+  "timeout_seconds": 1800,
+  "entrypoint": "python /app/run.py"
+}

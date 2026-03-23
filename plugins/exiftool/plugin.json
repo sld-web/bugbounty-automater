@@ -1,0 +1,31 @@
+{
+  "name": "exiftool",
+  "version": "1.0",
+  "permission_level": "SAFE",
+  "description": "Extract metadata from files using ExifTool",
+  "inputs": {
+    "file": {
+      "name": "file",
+      "type": "file",
+      "required": true,
+      "description": "File to extract metadata from"
+    },
+    "format": {
+      "name": "format",
+      "type": "string",
+      "required": false,
+      "default": "json",
+      "description": "Output format: json, short, or long"
+    }
+  },
+  "outputs": {
+    "metadata": {
+      "name": "metadata",
+      "type": "json_file",
+      "description": "Extracted file metadata"
+    }
+  },
+  "timeout_seconds": 60,
+  "docker_image": "bugbounty-exiftool:latest",
+  "entrypoint": "python /app/run.py"
+}

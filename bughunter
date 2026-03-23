@@ -1,0 +1,299 @@
+#!/bin/bash
+
+# Bug Bounty Automator - Start Script
+# Usage: ./bughunter [start|stop|status|restart]
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$SCRIPT_DIR/backend"
+FRONTEND_DIR="$SCRIPT_DIR/frontend"
+LOG_DIR="$SCRIPT_DIR/logs"
+
+PID_BACKEND="$LOG_DIR/backend.pid"
+PID_FRONTEND="$LOG_DIR/frontend.pid"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+log_info() { echo -e "${CYAN}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[✓]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+log_error() { echo -e "${RED}[✗]${NC} $1"; }
+
+mkdir -p "$LOG_DIR"
+
+check_python() {
+    if ! command -v python3 &> /dev/null; then
+        log_error "Python3 not found. Please install Python 3.10+"
+        exit 1
+    fi
+    log_success "Python3: $(python3 --version)"
+}
+
+check_node() {
+    if ! command -v node &> /dev/null; then
+        log_error "Node.js not found. Please install Node.js 18+"
+        exit 1
+    fi
+    log_success "Node.js: $(node --version)"
+    log_success "npm: $(npm --version)"
+}
+
+check_backend_deps() {
+    log_info "Checking backend dependencies..."
+    cd "$BACKEND_DIR"
+    
+    if [ ! -f "requirements.txt" ]; then
+        log_error "requirements.txt not found"
+        exit 1
+    fi
+    
+    python3 -c "import fastapi, uvicorn, sqlalchemy" 2>/dev/null || {
+        log_warn "Backend dependencies may not be installed"
+        log_info "Run: cd $BACKEND_DIR && pip install -r requirements.txt"
+    }
+}
+
+check_frontend_deps() {
+    log_info "Checking frontend dependencies..."
+    cd "$FRONTEND_DIR"
+    
+    if [ ! -f "package.json" ]; then
+        log_error "package.json not found"
+        exit 1
+    fi
+    
+    if [ ! -d "node_modules" ]; then
+        log_warn "Frontend dependencies not installed"
+        log_info "Run: cd $FRONTEND_DIR && npm install"
+    fi
+}
+
+start_backend() {
+    log_info "Starting Backend (FastAPI)..."
+    
+    if [ -f "$PID_BACKEND" ] && kill -0 "$(cat "$PID_BACKEND")" 2>/dev/null; then
+        log_warn "Backend already running (PID: $(cat $PID_BACKEND))"
+        return
+    fi
+    
+    cd "$BACKEND_DIR"
+    
+    nohup python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 \
+        > "$LOG_DIR/backend.log" 2>&1 &
+    
+    echo $! > "$PID_BACKEND"
+    sleep 2
+    
+    if kill -0 "$(cat "$PID_BACKEND")" 2>/dev/null; then
+        log_success "Backend started successfully (PID: $(cat $PID_BACKEND))"
+        log_info "API docs: http://localhost:8000/docs"
+    else
+        log_error "Backend failed to start. Check: $LOG_DIR/backend.log"
+        cat "$LOG_DIR/backend.log" | tail -20
+        rm -f "$PID_BACKEND"
+        exit 1
+    fi
+}
+
+start_frontend() {
+    log_info "Starting Frontend (Vite + Electron)..."
+    
+    if [ -f "$PID_FRONTEND" ] && kill -0 "$(cat "$PID_FRONTEND")" 2>/dev/null; then
+        log_warn "Frontend already running (PID: $(cat $PID_FRONTEND))"
+        return
+    fi
+    
+    cd "$FRONTEND_DIR"
+    
+    nohup npm run dev > "$LOG_DIR/frontend.log" 2>&1 &
+    
+    echo $! > "$PID_FRONTEND"
+    sleep 5
+    
+    if kill -0 "$(cat "$PID_FRONTEND")" 2>/dev/null; then
+        log_success "Frontend started successfully (PID: $(cat $PID_FRONTEND))"
+        log_info "Frontend: http://localhost:5173"
+    else
+        log_error "Frontend failed to start. Check: $LOG_DIR/frontend.log"
+        cat "$LOG_DIR/frontend.log" | tail -20
+        rm -f "$PID_FRONTEND"
+        exit 1
+    fi
+}
+
+check_health() {
+    log_info "Checking services health..."
+    
+    sleep 2
+    
+    if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+        log_success "Backend API: http://localhost:8000 - ONLINE"
+    else
+        log_error "Backend API: http://localhost:8000 - OFFLINE"
+        return 1
+    fi
+    
+    if curl -sf http://localhost:5173 > /dev/null 2>&1; then
+        log_success "Frontend: http://localhost:5173 - ONLINE"
+    else
+        log_warn "Frontend: http://localhost:5173 - Starting..."
+    fi
+    
+    return 0
+}
+
+stop_services() {
+    log_info "Stopping services..."
+    
+    if [ -f "$PID_BACKEND" ]; then
+        kill "$(cat "$PID_BACKEND")" 2>/dev/null && log_success "Backend stopped" || log_warn "Backend not running"
+        rm -f "$PID_BACKEND"
+    fi
+    
+    if [ -f "$PID_FRONTEND" ]; then
+        kill "$(cat "$PID_FRONTEND")" 2>/dev/null && log_success "Frontend stopped" || log_warn "Frontend not running"
+        rm -f "$PID_FRONTEND"
+    fi
+    
+    pkill -f "uvicorn" 2>/dev/null || true
+    pkill -f "vite" 2>/dev/null || true
+}
+
+show_status() {
+    echo ""
+    echo "========================================"
+    echo "     BUG BOUNTY AUTOMATOR STATUS"
+    echo "========================================"
+    echo ""
+    
+    if [ -f "$PID_BACKEND" ] && kill -0 "$(cat "$PID_BACKEND")" 2>/dev/null; then
+        log_success "Backend:  RUNNING (PID: $(cat $PID_BACKEND))"
+    else
+        log_error "Backend:  STOPPED"
+    fi
+    
+    if [ -f "$PID_FRONTEND" ] && kill -0 "$(cat "$PID_FRONTEND")" 2>/dev/null; then
+        log_success "Frontend: RUNNING (PID: $(cat $PID_FRONTEND))"
+    else
+        log_error "Frontend: STOPPED"
+    fi
+    
+    echo ""
+    if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+        log_success "API Health: OK"
+    else
+        log_error "API Health: FAIL"
+    fi
+    echo ""
+}
+
+show_help() {
+    echo ""
+    echo "========================================"
+    echo "     BUG BOUNTY AUTOMATOR"
+    echo "========================================"
+    echo ""
+    echo "Usage: ./bughunter [command]"
+    echo ""
+    echo "Commands:"
+    echo "  start     Start all services (default)"
+    echo "  stop      Stop all services"
+    echo "  status    Show service status"
+    echo "  restart   Restart all services"
+    echo "  logs      Show recent logs"
+    echo "  help      Show this help"
+    echo ""
+    echo "URLs:"
+    echo "  Frontend: http://localhost:5173"
+    echo "  API Docs: http://localhost:8000/docs"
+    echo ""
+}
+
+show_logs() {
+    echo ""
+    echo "=== BACKEND LOG (last 20 lines) ==="
+    [ -f "$LOG_DIR/backend.log" ] && tail -20 "$LOG_DIR/backend.log" || echo "No log file"
+    echo ""
+    echo "=== FRONTEND LOG (last 20 lines) ==="
+    [ -f "$LOG_DIR/frontend.log" ] && tail -20 "$LOG_DIR/frontend.log" || echo "No log file"
+    echo ""
+}
+
+start() {
+    echo ""
+    echo "========================================"
+    echo "     BUG BOUNTY AUTOMATOR"
+    echo "     Starting Services..."
+    echo "========================================"
+    echo ""
+    
+    check_python
+    check_node
+    check_backend_deps
+    check_frontend_deps
+    
+    stop_services 2>/dev/null || true
+    sleep 1
+    
+    start_backend
+    start_frontend
+    
+    echo ""
+    echo "========================================"
+    echo "     STARTUP COMPLETE"
+    echo "========================================"
+    echo ""
+    
+    if check_health; then
+        echo ""
+        log_success "🚀 Bug Bounty Automator started successfully!"
+        echo ""
+        echo "  Frontend: http://localhost:5173"
+        echo "  API:      http://localhost:8000"
+        echo "  Docs:     http://localhost:8000/docs"
+        echo ""
+        echo "  Press Ctrl+C to stop"
+        echo ""
+    else
+        echo ""
+        log_error "Some services failed to start properly"
+        echo ""
+        log_info "Run './bughunter logs' to check errors"
+        echo ""
+    fi
+    
+    wait
+}
+
+case "${1:-start}" in
+    start)
+        start
+        ;;
+    stop)
+        stop_services
+        ;;
+    status)
+        show_status
+        ;;
+    restart)
+        stop_services
+        sleep 2
+        start
+        ;;
+    logs)
+        show_logs
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        log_error "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac

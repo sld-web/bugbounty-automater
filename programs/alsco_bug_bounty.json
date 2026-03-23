@@ -1,0 +1,139 @@
+{
+  "name": "ALSCO Bug Bounty",
+  "platform": "manual",
+  "url": "https://bugbounty.alsco.com",
+  "scope": {
+    "domains": [
+      "sandbox.securegateway.com",
+      "sandbox-royal.securegateway.com"
+    ],
+    "excluded": [
+      "*.checksw.com",
+      "firewallgateway.com",
+      "*.firewallgateway.com"
+    ],
+    "mobile_apps": [
+      {
+        "name": "Secure Gateway",
+        "platform": "ios",
+        "app_id": "com.alscotoday.SecureGateway",
+        "store_url": "https://apps.apple.com/us/app/secure-gateway/id1633721151"
+      },
+      {
+        "name": "Secure Gateway",
+        "platform": "android",
+        "app_id": "com.alscotoday.SecureGateway",
+        "store_url": "https://play.google.com/store/apps/details?id=com.alscotoday.SecureGateway"
+      }
+    ],
+    "repositories": []
+  },
+  "priority_areas": [
+    "2FA bypass on Secure Gateway mobile app authentication",
+    "File upload bypass (testing extensions outside allowed list)",
+    "Secure Gateway upload detector bypass",
+    "Royal CMS injection vulnerabilities (XSS, SQLi, OS Command Injection, RCE)",
+    "Privilege escalation in authenticated sessions",
+    "Full account compromise scenarios",
+    "Database extraction or index page modification"
+  ],
+  "target_configs": [
+    {
+      "name": "sandbox.securegateway.com",
+      "type": "web_application",
+      "priority": "critical",
+      "testing_instructions": "1. 2FA bypass: Test authentication without receiving SMS/code\n2. Upload bypass: Upload files with extensions outside (jpg,jpeg,png,gif,jfif,mp4,doc,docx,pdf,xls,xlsx,ppsx,ppt,pptx,flv,rar,zip,htm,html) that execute in browser\n3. Upload detector bypass: Upload .jpg file containing malicious code like [php_uname]",
+      "authentication_required": true,
+      "notes": "Sandbox environment with security features disabled"
+    },
+    {
+      "name": "sandbox-royal.securegateway.com",
+      "type": "cms",
+      "priority": "critical",
+      "testing_instructions": "Test Royal CMS against:\n- XSS Injection\n- SQL Injection (SQLi)\n- OS Injection\n- Command Injection\n- URL Injection\n- Remote Code Execution\n- Privilege Escalation\nGoal: Change index page or download database",
+      "authentication_required": false,
+      "notes": "Royal CMS testing - requires permission for extended testing"
+    }
+  ],
+  "out_of_scope": [
+    "Clickjacking on pages with no sensitive actions",
+    "Cross-Site Request Forgery (CSRF) on unauthenticated forms",
+    "Attacks requiring MITM or physical access to user's device",
+    "Previously known vulnerable libraries without working PoC",
+    "Missing best practices in SSL/TLS configuration",
+    "Content spoofing without showing attack vector",
+    "Denial of Service attacks",
+    "Bruteforce oracle attacks on unauthenticated endpoints",
+    "Missing CSP headers",
+    "Missing HttpOnly/Secure flags on non-sensitive cookies",
+    "Email configuration issues (SPF/DKIM/DMARC)",
+    "Software version disclosure / Banner identification",
+    "Tabnabbing",
+    "Issues requiring unlikely user interaction",
+    "XSS without steal cookies capability",
+    "Secure Gateway bypasses (marked as Informative only)",
+    "SaaS applications under Secure Gateway Firewall",
+    "Business logic errors and misconfigurations"
+  ],
+  "severity_mapping": {
+    "critical": ["RCE", "SQL Injection leading to data breach", "Full account takeover", "Database download", "Index page modification"],
+    "high": ["Authenticated SSRF", "Stored XSS with impact", "IDOR leading to data access", "File upload leading to code execution"],
+    "medium": ["Reflected XSS", "Open redirect with abuse", "CSRF on sensitive actions"],
+    "low": ["Information disclosure", "Weak algorithms"],
+    "informative": ["Secure Gateway bypasses", "Best practice suggestions"]
+  },
+  "reward_tiers": {
+    "critical": "Variable - based on CVSS score",
+    "high": "Variable - based on CVSS score",
+    "medium": "Variable - based on CVSS score",
+    "low": "Variable - based on CVSS score",
+    "note": "All bounty amounts at discretion of ALSCO Bug Bounty team"
+  },
+  "campaigns": [],
+  "special_requirements": {
+    "require_video_poc": true,
+    "require_full_scenario": true,
+    "accepted_impacts": [
+      "Edit index page",
+      "Download database",
+      "Full account takeover with video demonstration"
+    ],
+    "documentation_format": {
+      "affected_target": "Required",
+      "description": "Required",
+      "impact": "Required",
+      "steps_to_reproduce": "Required",
+      "proof_of_concept": "Required",
+      "public_knowledge": "Required"
+    },
+    "testing_restrictions": {
+      "do_not": [
+        "Brute force credentials",
+        "Denial of Service attacks",
+        "Upload shells or backdoors",
+        "Social engineering",
+        "Extract PII data",
+        "Change passwords without permission"
+      ]
+    },
+    "disclosure_policy": "No discussion of vulnerabilities outside program without written consent",
+    "safe_harbor": true,
+    "test_accounts_available": true,
+    "sandbox_url": "http://checksw.com"
+  },
+  "program_rules": {
+    "eligibility": [
+      "First to submit reproducible report",
+      "Available for additional information requests",
+      "No public zero-days until 30 days after patch",
+      "Not an ALSCO employee or third-party employee"
+    ],
+    "disqualification": [
+      "Social engineering of employees/contractors/vendors",
+      "Physical attacks against employees/offices/data centers",
+      "DoS attacks",
+      "Compromised account access",
+      "Attacks against customer integrity"
+    ]
+  }
+}

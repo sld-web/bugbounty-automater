@@ -1,0 +1,15 @@
+{
+  "name": "nuclei",
+  "version": "1.0.0",
+  "permission_level": "LIMITED",
+  "description": "Vulnerability scanning using Nuclei",
+  "inputs": {
+    "target": "string (required)",
+    "severity": "array of strings (optional, e.g., ['critical', 'high', 'medium'])"
+  },
+  "outputs": {
+    "findings": "array of objects with template, severity, matched_at"
+  },
+  "timeout_seconds": 7200,
+  "entrypoint": "python /app/run.py"
+}

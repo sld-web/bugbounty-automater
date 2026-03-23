@@ -1,9 +1,24 @@
 """Finding schemas."""
+import html
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.finding import FindingStatus, Severity
+
+
+def sanitize_input(value: str) -> str:
+    """Sanitize input to prevent XSS attacks."""
+    if not value:
+        return value
+    escaped = html.escape(value, quote=True)
+    escaped = escaped.replace('\n', '').replace('\r', '').replace('\t', '')
+    script_pattern = re.compile(r'<script[^>]*>.*?</script>', re.IGNORECASE | re.DOTALL)
+    escaped = script_pattern.sub('', escaped)
+    event_pattern = re.compile(r'\bon\w+\s*=', re.IGNORECASE)
+    escaped = event_pattern.sub('', escaped)
+    return escaped.strip()
 
 
 class FindingCreate(BaseModel):
@@ -23,6 +38,13 @@ class FindingCreate(BaseModel):
     impact: str | None = None
     cvss_score: float | None = None
 
+    @field_validator('title', 'description', 'affected_url', 'affected_parameter', 'remediation', 'impact', mode='before')
+    @classmethod
+    def sanitize_text_fields(cls, v):
+        if isinstance(v, str):
+            return sanitize_input(v)
+        return v
+
 
 class FindingUpdate(BaseModel):
     title: str | None = None
@@ -37,6 +59,13 @@ class FindingUpdate(BaseModel):
     internal_refs: list | None = None
     report_id: str | None = None
     report_url: str | None = None
+
+    @field_validator('title', 'description', 'remediation', 'impact', mode='before')
+    @classmethod
+    def sanitize_text_fields(cls, v):
+        if isinstance(v, str):
+            return sanitize_input(v)
+        return v
 
 
 class FindingResponse(BaseModel):
