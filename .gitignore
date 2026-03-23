@@ -90,3 +90,5 @@ frontend/.parcel-cache/
 *.egg-info/
 dist/
 build/
+frontend/release/*.AppImage
+frontend/release/linux-unpacked/
