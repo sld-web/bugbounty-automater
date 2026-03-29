@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import ManualTestingChecklist from './ManualTestingChecklist';
 import {
   X,
   Play,
@@ -19,10 +20,26 @@ import {
   BarChart3,
   Lightbulb,
   Target,
+  ClipboardList,
 } from 'lucide-react';
 import { CyberButton } from '@/components/ui';
 import { flowsApi } from '@/services/api';
 import toast from 'react-hot-toast';
+import ManualTestingChecklist from './ManualTestingChecklist';
+import ApprovalModal from './ApprovalModal';
+import ApprovalModal from './ApprovalModal';
+
+interface TestResult {
+  id: string;
+  hypothesis_id: string;
+  timestamp: string;
+  payload_used: string;
+  response_status: number;
+  response_body: string;
+  success: boolean;
+  notes: string;
+  screenshot?: string; // base64 or URL
+}
 
 interface WorkflowStep {
   id: string;
@@ -98,6 +115,9 @@ export default function WorkflowExecutionModal({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'failed'>('all');
   const [currentTarget, setCurrentTarget] = useState<TargetWorkflow | null>(null);
+  const [showManualTesting, setShowManualTesting] = useState(false);
+  const [manualTestingHypotheses, setManualTestingHypotheses] = useState<Hypothesis[]>([]);
+  const [manualTestingTargetId, setManualTestingTargetId] = useState<string>('');
   
   const terminalRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -460,7 +480,66 @@ export default function WorkflowExecutionModal({
     toast.success('Results downloaded');
   };
 
-  const progress = getProgress();
+    const progress = getProgress();
+
+    // Manual Testing Checklist functions
+    const openManualTestingChecklist = () => {
+      if (!currentTarget) return;
+      
+      // In a real implementation, we would fetch hypotheses from the hypothesis generation service
+      // For now, we'll create some mock hypotheses based on the current step results
+      const mockHypotheses: Hypothesis[] = [
+        {
+          id: 'hyp_1',
+          description: 'Test for IDOR by modifying user ID parameter',
+          type: 'IDOR',
+          endpoint: '/api/user/{id}',
+          method: 'GET',
+          payload: '123',
+          expected_behavior: 'Access to another user\\'s data'
+        },
+        {
+          id: 'hyp_2',
+          description: 'Test for XSS in search parameter',
+          type: 'XSS',
+          endpoint: '/api/search',
+          method: 'GET',
+          payload: '<script>alert(document.domain)</script>',
+          expected_behavior: 'Script executes in victim\\'s browser'
+        },
+        {
+          id: 'hyp_3',
+          description: 'Test for missing CSRF protection on profile update',
+          type: 'CSRF',
+          endpoint: '/api/profile/update',
+          method: 'POST',
+          payload: '',
+          expected_behavior: 'Profile update succeeds without CSRF token'
+        }
+      ];
+      
+      setManualTestingHypotheses(mockHypotheses);
+      setManualTestingTargetId(currentTarget?.target_id || '');
+      setShowManualTesting(true);
+    };
+
+    const handleHypothesisTested = (hypothesisId: string, result: TestResult) => {
+      // In a real implementation, we would save this result and potentially generate new hypotheses
+      // For now, we'll just log it
+      console.log('Hypothesis tested:', { hypothesisId, result });
+      
+      // Close the manual testing modal and show a toast
+      setShowManualTesting(false);
+      toast.success('Hypothesis test completed', {
+        description: result.success ? 'Potential vulnerability detected!' : 'No vulnerability found with this test.'
+      });
+    };
+
+    const closeManualTesting = () => {
+      setShowManualTesting(false);
+      setManualTestingHypotheses([]);
+      setManualTestingTargetId('');
+    };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
@@ -671,20 +750,23 @@ export default function WorkflowExecutionModal({
         <div className="flex-1 flex flex-col">
           {/* Terminal */}
           <div className="flex-1 flex flex-col">
-            <div className="flex items-center justify-between px-4 py-2 bg-cyber-dark/40 border-b border-cyber-primary/30">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-cyber-primary" />
-                <span className="text-sm text-white/70">Terminal Output</span>
+              <div className="flex items-center justify-between px-4 py-2 bg-cyber-dark/40 border-b border-cyber-primary/30">
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-cyber-primary" />
+                  <span className="text-sm text-white/70">Terminal Output</span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={copyTerminalOutput} className="p-1 text-white/50 hover:text-white">
+                    <Copy className="w-4 h-4" />
+                  </button>
+                  <button onClick={downloadResults} className="p-1 text-white/50 hover:text-white">
+                    <Download className="w-4 h-4" />
+                  </button>
+                  <button onClick={openManualTestingChecklist} className="p-1 text-white/50 hover:text-white">
+                    <ClipboardList className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={copyTerminalOutput} className="p-1 text-white/50 hover:text-white">
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button onClick={downloadResults} className="p-1 text-white/50 hover:text-white">
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
             <div 
               ref={terminalRef}
               className="flex-1 bg-black/90 p-4 font-mono text-sm overflow-y-auto"
@@ -709,20 +791,77 @@ export default function WorkflowExecutionModal({
             </div>
           </div>
 
-          {/* AI Analysis Panel */}
-          <div className="h-64 border-t border-cyber-primary/30 flex flex-col">
-            <div className="flex items-center gap-2 px-4 py-2 bg-cyber-dark/40 border-b border-cyber-primary/30">
-              <Brain className="w-4 h-4 text-purple-400" />
-              <span className="text-sm text-white/70">AI Analysis</span>
-              {isAnalyzing && <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />}
-              <div className="flex-1" />
-              <button 
-                onClick={analyzeResults}
-                className="px-2 py-1 text-xs bg-purple-600/30 text-purple-400 rounded hover:bg-purple-600/50"
-              >
-                <RefreshCw className="w-3 h-3 inline mr-1" />
-                Refresh
-              </button>
+            {/* AI Analysis Panel */}
+            <div className="h-64 border-t border-cyber-primary/30 flex flex-col">
+              <div className="flex items-center gap-2 px-4 py-2 bg-cyber-dark/40 border-b border-cyber-primary/30">
+                <Brain className="w-4 h-4 text-purple-400" />
+                <span className="text-sm text-white/70">AI Analysis</span>
+                {isAnalyzing && <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />}
+                <div className="flex-1" />
+                <button 
+                  onClick={analyzeResults}
+                  className="px-2 py-1 text-xs bg-purple-600/30 text-purple-400 rounded hover:bg-purple-600/50"
+                >
+                  <RefreshCw className="w-3 h-3 inline mr-1" />
+                  Refresh
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {aiInsights.length === 0 ? (
+                  <div className="text-white/30 text-sm flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4" />
+                    <span>Execute some steps to get AI-powered insights and suggestions.</span>
+                  </div>
+                ) : (
+                  aiInsights.map((insight, i) => (
+                    <div 
+                      key={i}
+                      className={`p-3 rounded-lg border ${
+                        insight.type === 'finding' ? 'bg-blue-500/10 border-blue-500/30' :
+                        insight.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/30' :
+                        insight.type === 'suggestion' ? 'bg-green-500/10 border-green-500/30' :
+                        'bg-purple-500/10 border-purple-500/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        {insight.type === 'finding' && <Eye className="w-4 h-4 text-blue-400" />}
+                        {insight.type === 'warning' && <AlertTriangle className="w-4 h-4 text-yellow-400" />}
+                        {insight.type === 'suggestion' && <Lightbulb className="w-4 h-4 text-green-400" />}
+                        {insight.type === 'next_step' && <Target className="w-4 h-4 text-purple-400" />}
+                        <span className="text-sm font-medium text-white">{insight.title}</span>
+                      </div>
+                      <p className="text-xs text-white/70">{insight.content}</p>
+                      <div className="mt-1 text-xs text-white/40">
+                        Confidence: {(insight.confidence * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            {/* Manual Testing Panel */}
+            <div className="h-64 border-t border-cyber-primary/30 flex flex-col">
+              <div className="flex items-center gap-2 px-4 py-2 bg-cyber-dark/40 border-b border-cyber-primary/30">
+                <ClipboardList className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-white/70">Manual Testing</span>
+                <div className="flex-1" />
+                <button 
+                  onClick={closeManualTesting}
+                  variant="outline"
+                  colorScheme="gray"
+                  size="sm"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                <ManualTestingChecklist
+                  targetId={manualTestingTargetId}
+                  hypotheses={manualTestingHypotheses}
+                  onHypothesisTested={handleHypothesisTested}
+                />
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {aiInsights.length === 0 ? (

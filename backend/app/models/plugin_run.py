@@ -89,10 +89,9 @@ class PluginRun(BaseModel):
         self.status = PluginStatus.COMPLETED
         self.completed_at = datetime.utcnow()
         self.exit_code = exit_code
-        if self.started_at and self.completed_at:
-            self.duration_seconds = int(
-                (self.completed_at - self.started_at).total_seconds()
-            )
+        if self.started_at is not None and self.completed_at is not None:
+            delta = self.completed_at - self.started_at
+            self.duration_seconds = int(delta.total_seconds())
         if results:
             self.results = results
 
@@ -101,7 +100,7 @@ class PluginRun(BaseModel):
         self.completed_at = datetime.utcnow()
         self.error_message = error_message
         self.exit_code = exit_code
-        if self.started_at and self.completed_at:
+        if self.started_at is not None and self.completed_at is not None:
             self.duration_seconds = int(
                 (self.completed_at - self.started_at).total_seconds()
             )
@@ -110,3 +109,7 @@ class PluginRun(BaseModel):
         self.status = PluginStatus.TIMED_OUT
         self.completed_at = datetime.utcnow()
         self.error_message = "Execution timed out"
+        if self.started_at is not None and self.completed_at is not None:
+            self.duration_seconds = int(
+                (self.completed_at - self.started_at).total_seconds()
+            )

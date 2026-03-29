@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.flow_card import FlowCard
     from app.models.plugin_run import PluginRun
     from app.models.approval import ApprovalRequest
+    from app.models.learning import LearningMetric
 
 
 class TargetStatus(str, Enum):
@@ -56,6 +57,7 @@ class Target(BaseModel):
     ports: Mapped[list] = mapped_column(JSON, default=list)
     subdomains: Mapped[list] = mapped_column(JSON, default=list)
     endpoints: Mapped[list] = mapped_column(JSON, default=list)
+    endpoint_classifications: Mapped[dict] = mapped_column(JSON, default=dict)
     target_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     
     # Coverage tracking
@@ -86,6 +88,11 @@ class Target(BaseModel):
     )
     approval_requests: Mapped[list["ApprovalRequest"]] = relationship(
         "ApprovalRequest",
+        back_populates="target",
+        cascade="all, delete-orphan"
+    )
+    learning_metrics: Mapped[list["LearningMetric"]] = relationship(
+        "LearningMetric",
         back_populates="target",
         cascade="all, delete-orphan"
     )

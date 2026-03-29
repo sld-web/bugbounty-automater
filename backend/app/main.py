@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.api import programs, targets, approvals, plugins, flows, coverage, intel, credentials, credential_engine, mixed_mode, custom_headers, reporting, findings, jobs, slack
+from app.api import programs, targets, approvals, plugins, flows, coverage, intel, credentials, credential_engine, mixed_mode, custom_headers, reporting, findings, jobs, slack, hypotheses, learning
 from app.api import program_parser, app_settings, verify
 
 try:
@@ -87,6 +87,8 @@ app.include_router(jobs.router, prefix="/api")
 app.include_router(slack.router, prefix="/api")
 app.include_router(app_settings.router, prefix="/api")
 app.include_router(verify.router, prefix="/api")
+app.include_router(hypotheses.router, prefix="/api")
+app.include_router(learning.router, prefix="/api")
 
 
 @app.get("/")

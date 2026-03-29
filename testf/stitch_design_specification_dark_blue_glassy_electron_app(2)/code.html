@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SYNTHETIC_INTEL_HUD | WORKFLOW_DAG</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-fixed-dim": "#00daf3",
+              "surface-container-low": "#191c1f",
+              "on-primary": "#002a77",
+              "secondary-container": "#00d2fd",
+              "on-error-container": "#ffdad6",
+              "primary-fixed": "#dbe1ff",
+              "on-tertiary-container": "#008797",
+              "tertiary-fixed": "#9cf0ff",
+              "on-primary-container": "#3170ff",
+              "on-background": "#e1e2e7",
+              "on-secondary-fixed": "#001f27",
+              "tertiary": "#00daf3",
+              "on-secondary": "#003642",
+              "surface-dim": "#111417",
+              "primary-fixed-dim": "#b4c5ff",
+              "on-error": "#690005",
+              "error": "#ffb4ab",
+              "surface": "#111417",
+              "on-tertiary-fixed-variant": "#004f58",
+              "secondary": "#a2e7ff",
+              "surface-container-lowest": "#0c0e12",
+              "secondary-fixed-dim": "#3cd7ff",
+              "on-surface-variant": "#c7c6cb",
+              "on-primary-fixed-variant": "#003ea7",
+              "error-container": "#93000a",
+              "surface-container": "#1d2023",
+              "primary": "#b4c5ff",
+              "surface-tint": "#b4c5ff",
+              "on-primary-fixed": "#00174b",
+              "on-secondary-fixed-variant": "#004e5f",
+              "on-surface": "#e1e2e7",
+              "inverse-on-surface": "#2e3134",
+              "inverse-primary": "#0053da",
+              "surface-container-highest": "#323539",
+              "on-tertiary-fixed": "#001f24",
+              "tertiary-container": "#000f12",
+              "on-secondary-container": "#005669",
+              "secondary-fixed": "#b4ebff",
+              "outline": "#909095",
+              "on-tertiary": "#00363d",
+              "inverse-surface": "#e1e2e7",
+              "surface-variant": "#323539",
+              "primary-container": "#00092a",
+              "background": "#0a0c12",
+              "outline-variant": "#46464b",
+              "surface-container-high": "#282a2e",
+              "surface-bright": "#37393d"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.0rem", "lg": "0.0rem", "xl": "0.0rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(10, 15, 30, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid transparent;
+            border-image: linear-gradient(135deg, rgba(0, 212, 255, 0.3) 0%, rgba(0, 212, 255, 0) 100%) 1;
+        }
+        .crt-overlay {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .phosphor-glow {
+            box-shadow: inset 0 0 20px rgba(0, 218, 243, 0.05);
+            position: relative;
+        }
+        .node-active {
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+        .spectrum-bar {
+            background: linear-gradient(to top, #00daf3 0%, #00363d 100%);
+            animation: spectrum 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes spectrum {
+            from { height: 10%; }
+            to { height: 90%; }
+        }
+        @keyframes flicker {
+          0% { opacity: 0.1; }
+          5% { opacity: 0.12; }
+          10% { opacity: 0.1; }
+          15% { opacity: 0.11; }
+          20% { opacity: 0.1; }
+          25% { opacity: 0.13; }
+          100% { opacity: 0.1; }
+        }
+        .flicker-overlay {
+          animation: flicker 4s infinite;
+        }</style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-tertiary selection:text-on-tertiary overflow-hidden">
+<!-- Top Navigation Bar -->
+<header class="flex justify-between items-center w-full px-6 h-14 bg-[#0a0f1e]/80 backdrop-blur-[20px] fixed top-0 border-b border-[#00D4FF]/20 shadow-[0_0_30px_rgba(0,212,255,0.1)] z-50">
+<div class="text-xl font-bold text-[#00D4FF] tracking-tighter font-headline flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary">diamond</span>
+            SYNTHETIC_INTEL_HUD
+        </div>
+<nav class="hidden md:flex gap-8 items-center h-full">
+<a class="font-['Space_Grotesk'] uppercase tracking-[0.05em] text-sm text-[#00daf3] border-b-2 border-[#00daf3] pb-1 transition-all duration-200" href="#">WORKFLOW</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-[0.05em] text-sm text-[#b4c5ff]/60 hover:text-[#00daf3] hover:bg-[#b4c5ff]/5 transition-all px-2" href="#">NETWORK</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-[0.05em] text-sm text-[#b4c5ff]/60 hover:text-[#00daf3] hover:bg-[#b4c5ff]/5 transition-all px-2" href="#">THREATS</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-[0.05em] text-sm text-[#b4c5ff]/60 hover:text-[#00daf3] hover:bg-[#b4c5ff]/5 transition-all px-2" href="#">INTEL</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-[0.05em] text-sm text-[#b4c5ff]/60 hover:text-[#00daf3] hover:bg-[#b4c5ff]/5 transition-all px-2" href="#">SYSTEM</a>
+</nav>
+<div class="flex items-center gap-4 text-[#b4c5ff]">
+<span class="material-symbols-outlined cursor-pointer hover:text-[#00daf3] transition-colors">notifications_active</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-[#00daf3] transition-colors">settings</span>
+</div>
+</header>
+<main class="relative pt-14 pb-44 h-screen w-full flex overflow-hidden">
+<!-- Left Panel: Session & Analyzer -->
+<aside class="w-72 h-full flex flex-col bg-[#0a0f1e]/40 backdrop-blur-[10px] border-r border-[#00D4FF]/10 z-40 overflow-y-auto phosphor-glow">
+<div class="p-6 space-y-8">
+<!-- Active Session Identity -->
+<div class="glass-panel p-4 space-y-4 border-l-2 border-tertiary">
+<div class="text-[10px] font-bold text-[#b4c5ff]/40 tracking-[0.2em] uppercase">Active Session Identity</div>
+<div class="space-y-3">
+<div class="flex flex-col">
+<span class="text-[9px] text-tertiary/60 font-['JetBrains_Mono']">OPERATOR_ID</span>
+<span class="text-sm font-headline font-bold text-white tracking-tight">X-7729-OMEGA</span>
+</div>
+<div class="flex justify-between items-end">
+<div class="flex flex-col">
+<span class="text-[9px] text-tertiary/60 font-['JetBrains_Mono']">STATUS</span>
+<span class="text-[10px] font-black text-tertiary flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">lock</span>
+                                    ENCRYPTED
+                                </span>
+</div>
+<div class="w-12 h-12 bg-tertiary/10 rounded-sm border border-tertiary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary">fingerprint</span>
+</div>
+</div>
+</div>
+</div>
+<!-- High-Frequency Spectrum Analyzer -->
+<div class="space-y-4">
+<div class="text-[10px] font-bold text-[#b4c5ff]/40 tracking-[0.2em] uppercase">High-Frequency Spectrum</div>
+<div class="h-40 glass-panel p-2 flex items-end justify-between gap-1 overflow-hidden">
+<div class="spectrum-bar w-full" style="animation-delay: 0.1s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.5s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.3s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.8s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.2s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.6s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.4s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.9s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.7s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.2s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.5s"></div>
+<div class="spectrum-bar w-full" style="animation-delay: 0.1s"></div>
+</div>
+<div class="flex justify-between font-['JetBrains_Mono'] text-[8px] text-[#b4c5ff]/40">
+<span>0Hz</span>
+<span>2.4GHz</span>
+<span>5.0GHz</span>
+</div>
+</div>
+<div class="space-y-4">
+<div class="text-[10px] font-bold text-[#b4c5ff]/40 tracking-[0.2em] uppercase">Node Status</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between text-[10px] p-2 bg-surface-container-low border-r border-tertiary">
+<span class="text-on-surface-variant font-['JetBrains_Mono']">ALPHA_CORE</span>
+<span class="text-tertiary">STABLE</span>
+</div>
+<div class="flex items-center justify-between text-[10px] p-2 bg-surface-container-low border-r border-error/50">
+<span class="text-on-surface-variant font-['JetBrains_Mono']">RECV_BUFFER</span>
+<span class="text-error/70">OVERFLOW</span>
+</div>
+</div>
+</div>
+</div>
+<div class="crt-overlay flicker-overlay absolute inset-0 opacity-5 pointer-events-none"></div></aside>
+<!-- Center Panel: Workflow DAG Area -->
+<section class="flex-1 relative bg-surface-container-lowest overflow-hidden p-8">
+<!-- Grid Background Overlay -->
+<div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#00D4FF 1px, transparent 0); background-size: 40px 40px;"></div>
+<div class="relative w-full h-full flex items-center justify-center">
+<!-- SVG Connections (Visual Only) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<lineargradient id="lineGrad" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#00daf3" stop-opacity="0"></stop>
+<stop offset="50%" stop-color="#00daf3" stop-opacity="0.5"></stop>
+<stop offset="100%" stop-color="#00daf3" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<path d="M 120 250 L 320 250 M 520 250 L 700 150 M 520 250 L 700 350 M 920 150 L 1100 250 M 920 350 L 1100 250 M 1300 250 L 1500 250" fill="none" stroke="url(#lineGrad)" stroke-dasharray="8 4" stroke-width="1.5"></path>
+</svg>
+<div class="grid grid-cols-12 gap-6 w-full max-w-[1400px] relative">
+<!-- RECON Node -->
+<div class="col-span-2">
+<div class="glass-panel p-4 space-y-3 node-active border-l-4 border-tertiary relative group cursor-pointer hover:bg-tertiary/5 transition-all">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-tertiary text-lg">search</span>
+<div class="text-[8px] bg-tertiary/20 text-tertiary px-1 font-bold">ACTIVE</div>
+</div>
+<div class="font-headline font-bold text-sm tracking-tight text-primary">RECON</div>
+<div class="font-['JetBrains_Mono'] text-[10px] space-y-1 text-on-surface-variant">
+<div class="flex justify-between"><span>CPU</span><span class="text-tertiary">14%</span></div>
+<div class="flex justify-between"><span>MEM</span><span class="text-tertiary">1.2G</span></div>
+</div>
+</div>
+</div>
+<!-- ANALYSIS Node -->
+<div class="col-span-2">
+<div class="glass-panel p-4 space-y-3 opacity-60 border-l-2 border-transparent hover:opacity-100 transition-opacity">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-[#b4c5ff]/40 text-lg">analytics</span>
+<div class="text-[8px] bg-surface-container-high text-[#b4c5ff]/40 px-1">PENDING</div>
+</div>
+<div class="font-headline font-bold text-sm tracking-tight text-on-surface-variant">ANALYSIS</div>
+<div class="font-['JetBrains_Mono'] text-[10px] space-y-1 text-[#b4c5ff]/20">
+<div class="flex justify-between"><span>CPU</span><span>0%</span></div>
+<div class="flex justify-between"><span>MEM</span><span>0G</span></div>
+</div>
+</div>
+</div>
+<!-- VECTOR_ID Node -->
+<div class="col-span-4">
+<div class="glass-panel p-5 space-y-4 border-l-4 border-secondary shadow-[0_0_40px_rgba(0,212,255,0.15)] relative overflow-hidden">
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary/5 blur-[50px] -mr-16 -mt-16"></div>
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-secondary text-2xl">psychology</span>
+<div class="text-[8px] bg-secondary/20 text-secondary px-2 py-0.5 animate-pulse font-bold tracking-widest">OPTIMIZING</div>
+</div>
+<div>
+<div class="font-headline font-bold text-lg tracking-tight text-white">VECTOR_ID</div>
+<div class="text-[10px] text-on-surface-variant uppercase mt-1 flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                    AI Classification Engine
+                                </div>
+</div>
+<div class="w-full bg-surface-container-high h-[2px]">
+<div class="bg-secondary h-full w-[65%] shadow-[0_0_10px_#a2e7ff]"></div>
+</div>
+<div class="grid grid-cols-2 gap-4 font-['JetBrains_Mono'] text-[10px]">
+<div class="flex justify-between border-b border-surface-container-high pb-1"><span>HITS</span><span class="text-secondary font-bold">4,209</span></div>
+<div class="flex justify-between border-b border-surface-container-high pb-1"><span>CONF</span><span class="text-secondary font-bold">98.4%</span></div>
+</div>
+</div>
+</div>
+<!-- EXPLOIT / PAYLOAD Branch -->
+<div class="col-span-2 space-y-6">
+<div class="glass-panel p-4 space-y-3 opacity-40 border-l border-white/5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant/40 text-lg">science</span>
+<div class="font-headline font-bold text-xs tracking-tight text-on-surface-variant">EXPLOIT_SIM</div>
+</div>
+</div>
+<div class="glass-panel p-4 space-y-3 opacity-40 border-l border-white/5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant/40 text-lg">package_2</span>
+<div class="font-headline font-bold text-xs tracking-tight text-on-surface-variant">PAYLOAD_GEN</div>
+</div>
+</div>
+</div>
+<!-- REPORTING Node -->
+<div class="col-span-2">
+<div class="glass-panel p-6 border-dashed border border-tertiary/20 bg-tertiary/5 hover:bg-tertiary/10 transition-colors h-full flex flex-col items-center justify-center text-center space-y-4">
+<div class="w-10 h-10 rounded-full border border-tertiary/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary/40">description</span>
+</div>
+<div>
+<div class="font-headline font-bold text-xs tracking-tight text-[#b4c5ff]">REPORTING</div>
+<div class="text-[9px] text-tertiary/60 font-['JetBrains_Mono'] mt-1 italic leading-tight">Waiting for data...</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Panel: Threat Metrics -->
+<aside class="w-72 h-full flex flex-col bg-[#0a0f1e]/80 backdrop-blur-[20px] border-l border-[#00D4FF]/10 z-40 overflow-y-auto phosphor-glow">
+<div class="p-6 space-y-6">
+<!-- Threat Level Gauge -->
+<div class="space-y-4">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-error animate-pulse shadow-[0_0_10px_#ffb4ab]"></div>
+<h2 class="text-sm font-black text-[#b4c5ff] font-headline tracking-widest">THREAT_METRICS</h2>
+</div>
+<div class="relative pt-2">
+<div class="flex justify-between text-[10px] font-bold text-[#b4c5ff]/60 font-['JetBrains_Mono'] mb-2 uppercase">
+<span>System Load</span>
+<span class="text-error">94% Critical</span>
+</div>
+<div class="h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-error w-[94%] shadow-[0_0_15px_#ffb4ab]"></div>
+</div>
+<p class="font-['JetBrains_Mono'] text-[9px] uppercase text-error/80 tracking-widest mt-2">SECTOR_7_ACTIVE_RESOURCES</p>
+</div>
+</div>
+<nav class="space-y-1 -mx-6">
+<div class="flex items-center px-6 py-4 gap-4 bg-[#00D4FF]/10 text-[#00daf3] border-r-4 border-[#00daf3] cursor-pointer">
+<span class="material-symbols-outlined" data-weight="fill">radar</span>
+<span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter font-bold">TARGETS</span>
+</div>
+<div class="flex items-center px-6 py-4 gap-4 text-[#b4c5ff]/40 hover:bg-white/5 hover:text-[#a2e7ff] transition-all cursor-pointer">
+<span class="material-symbols-outlined">security</span>
+<span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter">VULNS</span>
+</div>
+<div class="flex items-center px-6 py-4 gap-4 text-[#b4c5ff]/40 hover:bg-white/5 hover:text-[#a2e7ff] transition-all cursor-pointer">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter">UP-LINK</span>
+</div>
+</nav>
+<div class="space-y-4 pt-4 border-t border-white/5">
+<div class="text-[10px] font-bold text-[#b4c5ff]/40 tracking-widest">ACTIVE_TARGETS</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center text-[10px] bg-surface-container-low p-2 border-l-2 border-tertiary">
+<span class="font-['JetBrains_Mono']">192.168.1.104</span>
+<span class="text-tertiary font-bold">SCANNING</span>
+</div>
+<div class="flex justify-between items-center text-[10px] bg-surface-container-low p-2 border-l-2 border-error/50">
+<span class="font-['JetBrains_Mono']">DMZ_NODE_X9</span>
+<span class="text-error/70 font-bold uppercase">Breach</span>
+</div>
+</div>
+</div>
+</div>
+<div class="p-6 mt-auto">
+<button class="w-full py-4 bg-tertiary text-on-primary font-black text-[10px] tracking-[0.2em] hover:shadow-[0_0_30px_rgba(0,212,255,0.4)] transition-all uppercase">
+                    INITIATE_SCAN
+                </button>
+</div>
+<div class="crt-overlay flicker-overlay absolute inset-0 opacity-5 pointer-events-none"></div></aside>
+</main>
+<!-- Bottom Command Terminal -->
+<footer class="fixed bottom-0 left-0 w-full bg-[#0a0c12] border-t border-[#00D4FF]/30 z-50 overflow-hidden flex flex-col">
+<!-- Terminal Mockup Body -->
+<div class="h-32 px-6 py-4 font-['JetBrains_Mono'] text-[11px] text-tertiary/90 overflow-y-auto space-y-1 relative">
+<div class="opacity-60 flex gap-2"><span>[21:44:02]</span> <span class="text-[#b4c5ff]/40">INIT_BOOT_SEQUENCE:</span> COMPLETE</div>
+<div class="opacity-80 flex gap-2"><span>[21:44:03]</span> <span>root@synth_intel:~$ initiating recon on target 192.168.1.104...</span></div>
+<div class="opacity-80 flex gap-2"><span>[21:44:05]</span> <span>root@synth_intel:~$ packet capture started. filter: tcp port 80, 443, 8080</span></div>
+<div class="opacity-80 flex gap-2"><span>[21:44:08]</span> <span>root@synth_intel:~$ found 4 active services. routing to analysis_engine_v4</span></div>
+<div class="flex gap-2"><span>[21:44:10]</span> <span>root@synth_intel:~$ <span class="w-2 h-4 bg-tertiary inline-block animate-pulse align-middle"></span></span></div>
+<!-- Floating Data on Overlay -->
+<div class="absolute right-10 top-4 text-right space-y-1 opacity-20 text-[9px]">
+<div>PACKET_STREAM_ID: 0x9928AF</div>
+<div>BUFFER_SIZE: 1024KB</div>
+<div>PARITY_CHECK: PASS</div>
+</div>
+</div>
+<!-- Terminal Status Bar -->
+<div class="h-10 border-t border-tertiary/10 bg-[#0a0c12] flex justify-between items-center px-6 relative">
+<div class="flex items-center h-full">
+<div class="text-[#00daf3] pr-4 h-full flex items-center gap-2 font-['JetBrains_Mono'] text-[10px] font-bold tracking-tight">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                    TERMINAL_SESSION
+                </div>
+<div class="flex items-center px-4 gap-2 text-[#b4c5ff]/30 h-full font-['JetBrains_Mono'] text-[10px] hover:bg-tertiary/5 hover:text-tertiary cursor-pointer transition-colors border-l border-tertiary/10">
+<span class="material-symbols-outlined text-sm">error_outline</span>
+                    ERRORS
+                </div>
+<div class="flex items-center px-4 gap-2 text-[#b4c5ff]/30 h-full font-['JetBrains_Mono'] text-[10px] hover:bg-tertiary/5 hover:text-tertiary cursor-pointer transition-colors border-l border-tertiary/10">
+<span class="material-symbols-outlined text-sm">lan</span>
+                    SESSIONS
+                </div>
+</div>
+<div class="flex items-center h-full gap-6">
+<div class="flex gap-4 font-['JetBrains_Mono'] text-[9px] text-[#00daf3]/50">
+<span>LATENCY: 14ms</span>
+<span>PKT_LOSS: 0.00%</span>
+<span>SEC_ENCRYPT: AES-256</span>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-tertiary animate-pulse shadow-[0_0_10px_#00daf3]"></div>
+</div>
+<!-- CRT Scanline Effect Overlay (Applied to full bottom bar area) -->
+<div class="crt-overlay absolute inset-0 opacity-10 pointer-events-none"></div>
+</div>
+</footer>
+</body></html>

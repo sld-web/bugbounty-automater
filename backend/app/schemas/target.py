@@ -65,6 +65,7 @@ class TargetResponse(BaseModel):
     ports: list
     subdomains: list
     endpoints: list
+    endpoint_classifications: dict
     target_metadata: dict
     surface_coverage: int
     attack_vector_coverage: int
